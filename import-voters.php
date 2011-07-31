@@ -154,7 +154,7 @@ function voter_write_data($active_db, $voter_rows) {
     $voter[33] = voter_reformat_date($voter[33]);
     $vote_history[5] = voter_reformat_date($vote_history[5]);
     db_query($active_db, "REPLACE INTO voters VALUES(" . db_placeholders($voter, 'varchar') . ")", $voter);
-    db_query($active_db, "INSERT INTO vote_history VALUES(" . db_placeholders($vote_history, 'varchar') . ")", $vote_history);
+    db_query($active_db, "REPLACE INTO vote_history VALUES(" . db_placeholders($vote_history, 'varchar') . ")", $vote_history);
   }
 }
 
