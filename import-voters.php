@@ -9,16 +9,20 @@
  * the Free Software Foundation, version 2 or any later version.
  */
 
+date_default_timezone_set('UTC');
+ini_set('memory_limit', '256M');
 
 /**
  * Indicates the place holders that should be replaced in _db_query_callback().
  */
-define('DB_QUERY_REGEXP', '/(%d|%s|%%|%f|%b|%n)/');
+define('DB_QUERY_REGEXP', '/(%d|%s|%%|%f|%n)/');
 
+// The CSV files, at least, have an extra trailing delimiter. So the
+// expected number of fileds is on more than the real number we use.
 define('EXPECTED_NUM_FIELDS', 47);
 
 if (count($argv) < 3) {
-  exit("usage: {$argv[0]} filename mysqli_connection_url\n");
+  exit("usage: {$argv[0]} filename mysqli_connection_url\n\nA valid connection URL looks like 'mysqli://myname:pass@127.0.0.1:3306/voterdbname'\n");
 }
 
 $filename = $argv[1];
@@ -97,22 +101,66 @@ OESQL2;
 db_query($active_db, $sql1);
 db_query($active_db, $sql2);
 
-$lines = file($filename);
+$lines = file($filename, FILE_IGNORE_NEW_LINES);
 if (!$lines) {
   exit("No data in file {$filename}\n");
 }
+
+// This makes sure all rows for the same voter are together.
+sort($lines);
 
 $delimiter = ','; // CSV default
 if (count(explode('|', $lines[0])) >= EXPECTED_NUM_FIELDS) {
   $delimiter = '|'; // Pipe delimited
 }
 
-foreach ($lines as $l) {
+$id = '';
+$voter_rows = array();
+
+foreach ($lines as $i => $l) {
   $fields = explode($delimiter, $l);
+  $lines[$i] = NULL;
   if (count($fields) != EXPECTED_NUM_FIELDS) {
     echo "Invalid line: {$l}\n";
     continue;
   }
+  // We write each voter to avoid exhausting memory by keeping
+  // two copies of the data.
+  if ($id != $fields[0]) {
+    voter_write_data($active_db, $voter_rows);
+    $id = $fields[0];
+    $voter_rows = array();
+  }
+  // Index by voter ID and election date.
+  $date = strtotime($fields[42]);
+  $idx = $fields[0] . ':' . $date;
+  $voter_rows[$idx] = $fields;
+}
+// Write the last one.
+voter_write_data($active_db, $voter_rows);
+
+
+exit;
+
+function voter_write_data($active_db, $voter_rows) {
+  // Sort on the keys so that the most recent data is last
+  // for each voter.
+  ksort($voter_rows);
+
+  foreach ($voter_rows as $fields) {
+    $voter = array_slice($fields, 0, 38);
+    $vote_history = array_merge(array_slice($fields, 0, 1), array_slice($fields, 38, 8));
+    $voter[32] = voter_reformat_date($voter[32]);
+    $voter[33] = voter_reformat_date($voter[33]);
+    $vote_history[5] = voter_reformat_date($vote_history[5]);
+    db_query($active_db, "REPLACE INTO voters VALUES(" . db_placeholders($voter, 'varchar') . ")", $voter);
+    db_query($active_db, "INSERT INTO vote_history VALUES(" . db_placeholders($vote_history, 'varchar') . ")", $vote_history);
+  }
+}
+
+function voter_reformat_date($str) {
+  $parts = explode('/', $str);
+  return "{$parts[2]}-{$parts[0]}-{$parts[1]}";
 }
 
 /**
@@ -161,10 +209,12 @@ function db_connect($url) {
 /**
  * Helper function for db_query().
  */
-function _db_query_callback($match, $init = FALSE) {
+function _db_query_callback($match, $connection = FALSE) {
   static $args = NULL;
-  if ($init) {
+  static $active_db = NULL;
+  if ($connection) {
     $args = $match;
+    $active_db = $connection;
     return;
   }
 
@@ -184,7 +234,7 @@ function _db_query_callback($match, $init = FALSE) {
       // We don't need db_escape_string as numbers are db-safe.
       return $value;
     case '%s':
-      return db_escape_string(array_shift($args));
+      return mysqli_real_escape_string($active_db, array_shift($args));
     case '%n':
       // Numeric values have arbitrary precision, so can't be treated as float.
       // is_numeric() allows hex values (0xFF), but they are not valid.
@@ -194,8 +244,6 @@ function _db_query_callback($match, $init = FALSE) {
       return '%';
     case '%f':
       return (float) array_shift($args);
-    case '%b': // binary data
-      return db_encode_blob(array_shift($args));
   }
 }
 
@@ -247,9 +295,6 @@ function db_type_placeholder($type) {
 
     case 'float':
       return '%f';
-
-    case 'blob':
-      return '%b';
   }
 
   // There is no safe value to return here, so return something that
@@ -284,7 +329,7 @@ function db_type_placeholder($type) {
  */
 function db_query($active_db, $query, $args = array()) {
 
-  _db_query_callback($args, TRUE);
+  _db_query_callback($args, $active_db);
   $query = preg_replace_callback(DB_QUERY_REGEXP, '_db_query_callback', $query);
 
   $result = mysqli_query($active_db, $query);
