@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS `voters` (
   prefix VARCHAR(5),
   suffix VARCHAR(5),
   sex VARCHAR(1),
-  street_number VARCHAR(6),
+  street_number INT,
   suffix_a VARCHAR(8),
   suffix_b VARCHAR(3),
   street_name VARCHAR(50),
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS `voters` (
   state VARCHAR(2),
   zip5 VARCHAR(5),
   zip4 VARCHAR(4),
-  mailing_street_number VARCHAR(6),
+  mailing_street_number INT,
   mailing_suffix_a VARCHAR(8),
   mailing_suffix_b VARCHAR(3),
   mailing_street_name1 VARCHAR(50),
@@ -98,8 +98,19 @@ CREATE TABLE IF NOT EXISTS `vote_history` (
 );
 OESQL2;
 
+$sql3 = <<<OESQL3
+CREATE TABLE IF NOT EXISTS `voter_contact` (
+  voter_id VARCHAR(9) NOT NULL,
+  code VARCHAR(4),
+  note TEXT,
+  ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (voter_id)
+);
+OESQL3;
+
 db_query($active_db, $sql1);
 db_query($active_db, $sql2);
+db_query($active_db, $sql3);
 
 $lines = file($filename, FILE_IGNORE_NEW_LINES);
 if (!$lines) {
@@ -148,14 +159,15 @@ function voter_write_data($active_db, $voter_rows) {
   ksort($voter_rows);
 
   foreach ($voter_rows as $fields) {
-    $voter = array_slice($fields, 0, 38);
     $vote_history = array_merge(array_slice($fields, 0, 1), array_slice($fields, 38, 8));
     $voter[32] = voter_reformat_date($voter[32]);
     $voter[33] = voter_reformat_date($voter[33]);
     $vote_history[5] = voter_reformat_date($vote_history[5]);
-    db_query($active_db, "REPLACE INTO voters VALUES(" . db_placeholders($voter, 'varchar') . ")", $voter);
     db_query($active_db, "REPLACE INTO vote_history VALUES(" . db_placeholders($vote_history, 'varchar') . ")", $vote_history);
   }
+  // Write, the last, most recent, record into the voters table.
+  $voter = array_slice($fields, 0, 38);
+  db_query($active_db, "REPLACE INTO voters VALUES(" . db_placeholders($voter, 'varchar') . ")", $voter);
 }
 
 function voter_reformat_date($str) {
