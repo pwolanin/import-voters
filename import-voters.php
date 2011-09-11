@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS `voters` (
   PRIMARY KEY (voter_id),
   KEY party_code (party_code),
   KEY last_name (last_name)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 OESQL1;
 
 $sql2 = <<<OESQL2
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS `vote_history` (
   election_type VARCHAR(1),
   election_category VARCHAR(1),
   PRIMARY KEY (voter_id, election_date)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 OESQL2;
 
 $sql3 = <<<OESQL3
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS `voter_contact` (
   note TEXT,
   ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (voter_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 OESQL3;
 
 $sql4 = <<<OESQL4
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS `van_info` (
   home_phone VARCHAR(20),
   PRIMARY KEY (voter_id),
   UNIQUE KEY van_id (van_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 OESQL4;
 
 db_query($active_db, $sql1);
