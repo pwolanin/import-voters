@@ -57,11 +57,8 @@ $result = db_query($active_db, "SELECT * FROM $viewname");
 
 
 $time = date('Y-m-d_h-j');
-$html_fp = fopen("./$viewname-walk_$time.html", 'w');
+$html_fp = fopen("./$viewname_$time.html", 'w');
 $csv_fp = fopen("./$viewname-update_$time.csv", 'w');
-
-fwrite($html_fp, "<!DOCTYPE HTML>\n<html>\n<head>\n");
-fwrite($html_fp, "<!DOCTYPE HTML>\n<html>\n<head>\n");
 
 $head = <<<EOHEAD
 <!DOCTYPE HTML>

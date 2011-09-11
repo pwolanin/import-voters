@@ -21,10 +21,10 @@ if (file_exists('./settings.php')) {
 }
 
 if (count($argv) < 2 && isset($db_url)) {
-  exit("usage: {$argv[0]} viewname");
+  exit("usage: {$argv[0]} voterfile");
 }
 elseif (count($argv) < 3 && !isset($db_url)) {
-  exit("usage: {$argv[0]} viewname mysqli_connection_url\n\nA valid connection URL looks like 'mysqli://myname:pass@127.0.0.1:3306/voterdbname'\n");
+  exit("usage: {$argv[0]} voterfile mysqli_connection_url\n\nA valid connection URL looks like 'mysqli://myname:pass@127.0.0.1:3306/voterdbname'\n");
 }
 
 if (isset($argv[2])) {
@@ -80,7 +80,9 @@ CREATE TABLE IF NOT EXISTS `voters` (
   municipality VARCHAR(20),
   ward VARCHAR(2),
   district VARCHAR(2),
-  PRIMARY KEY (voter_id)
+  PRIMARY KEY (voter_id),
+  KEY party_code (party_code),
+  KEY last_name (last_name)
 );
 OESQL1;
 
@@ -110,11 +112,20 @@ CREATE TABLE IF NOT EXISTS `voter_contact` (
 );
 OESQL3;
 
+$sql4 = <<<OESQL4
+CREATE TABLE IF NOT EXISTS `van_info` (
+  voter_id VARCHAR(9) NOT NULL,
+  van_id VARCHAR(9) NOT NULL,
+  home_phone VARCHAR(20),
+  PRIMARY KEY (voter_id),
+  UNIQUE KEY van_id (van_id)
+);
+OESQL4;
+
 db_query($active_db, $sql1);
 db_query($active_db, $sql2);
-db_query($active_db, "CREATE INDEX party_code ON voters (party_code)");
-db_query($active_db, "CREATE INDEX last_name ON voters (last_name)");
 db_query($active_db, $sql3);
+db_query($active_db, $sql4);
 
 $lines = file($filename, FILE_IGNORE_NEW_LINES);
 if (!$lines) {
