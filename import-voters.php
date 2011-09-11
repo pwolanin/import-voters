@@ -76,9 +76,7 @@ CREATE TABLE IF NOT EXISTS `voters` (
   municipality VARCHAR(20),
   ward VARCHAR(2),
   district VARCHAR(2),
-  PRIMARY KEY (voter_id),
-  KEY party_code (party_code),
-  KEY last_name (last_name)
+  PRIMARY KEY (voter_id)
 );
 OESQL1;
 
@@ -103,13 +101,15 @@ CREATE TABLE IF NOT EXISTS `voter_contact` (
   voter_id VARCHAR(9) NOT NULL,
   code VARCHAR(4),
   note TEXT,
-  ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (voter_id)
 );
 OESQL3;
 
 db_query($active_db, $sql1);
 db_query($active_db, $sql2);
+db_query($active_db, "CREATE INDEX IF NOT EXISTS party_code ON voters (party_code)");
+db_query($active_db, "CREATE INDEX IF NOT EXISTS last_name ON voters (last_name)");
 db_query($active_db, $sql3);
 
 $lines = file($filename, FILE_IGNORE_NEW_LINES);
@@ -158,16 +158,19 @@ function voter_write_data($active_db, $voter_rows) {
   // for each voter.
   ksort($voter_rows);
 
+  $fields = NULL;
   foreach ($voter_rows as $fields) {
     $vote_history = array_merge(array_slice($fields, 0, 1), array_slice($fields, 38, 8));
-    $voter[32] = voter_reformat_date($voter[32]);
-    $voter[33] = voter_reformat_date($voter[33]);
     $vote_history[5] = voter_reformat_date($vote_history[5]);
     db_query($active_db, "REPLACE INTO vote_history VALUES(" . db_placeholders($vote_history, 'varchar') . ")", $vote_history);
   }
-  // Write, the last, most recent, record into the voters table.
-  $voter = array_slice($fields, 0, 38);
-  db_query($active_db, "REPLACE INTO voters VALUES(" . db_placeholders($voter, 'varchar') . ")", $voter);
+  if (is_array($fields)) {
+    // Write, the last, most recent, record into the voters table.
+    $voter = array_slice($fields, 0, 38);
+    $voter[32] = voter_reformat_date($voter[32]);
+    $voter[33] = voter_reformat_date($voter[33]);
+    db_query($active_db, "REPLACE INTO voters VALUES(" . db_placeholders($voter, 'varchar') . ")", $voter);
+  }
 }
 
 function voter_reformat_date($str) {
