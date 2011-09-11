@@ -70,7 +70,7 @@ foreach ($lines as $l) {
   // We write each voter to avoid exhausting memory by keeping
   // two copies of the data.
   $voter = array();
-  foreach('VoterID', 'VoteBuilder ID', 'HomePhone' as $key) {
+  foreach(array('VoterID', 'VoteBuilder ID', 'HomePhone') as $key) {
     $voter[$key] = $fields[$idx[$key]];
   }
   // For some reason, van has a prefix 'I0210' on the NJ voter ID.
