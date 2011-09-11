@@ -9,22 +9,32 @@
  * the Free Software Foundation, version 2 or any later version.
  */
 
-require_once 'db-helper.php';
+require_once dirname(__FILE__) . '/db-helper.php';
 
 // The CSV files, at least, have an extra trailing delimiter. So the
 // expected number of fileds is on more than the real number we use.
 define('EXPECTED_NUM_FIELDS', 47);
 
-if (count($argv) < 3) {
-  exit("usage: {$argv[0]} filename mysqli_connection_url\n\nA valid connection URL looks like 'mysqli://myname:pass@127.0.0.1:3306/voterdbname'\n");
+// Optionally include the DB url from a file.
+if (file_exists('./settings.php')) {
+  include './settings.php';
+}
+
+if (count($argv) < 2 && isset($db_url)) {
+  exit("usage: {$argv[0]} viewname");
+}
+elseif (count($argv) < 3 && !isset($db_url)) {
+  exit("usage: {$argv[0]} viewname mysqli_connection_url\n\nA valid connection URL looks like 'mysqli://myname:pass@127.0.0.1:3306/voterdbname'\n");
+}
+
+if (isset($argv[2])) {
+  $db_url = $argv[2];
 }
 
 $filename = $argv[1];
 if (!file_exists($filename) || !is_readable($filename)) {
   exit("File {$filename} does not exist or cannot be read\n");
 }
-
-$db_url = $argv[2];
 
 $active_db = db_connect($db_url);
 

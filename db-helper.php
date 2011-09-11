@@ -211,3 +211,11 @@ function db_fetch_array($result) {
   }
 }
 
+/**
+ * Restrict a dynamic table, column or constraint name to safe characters.
+ *
+ * Only keeps alphanumeric and underscores.
+ */
+function db_escape_table($string) {
+  return preg_replace('/[^A-Za-z0-9_]+/', '', $string);
+}
