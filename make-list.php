@@ -31,10 +31,10 @@ $active_db = db_connect($db_url);
 
 $html_columns = array(
   ' ' => ' ',
-  'code' => 'Y  U  N  W ',
+  'code' => 'Y LY U LN N W ',
   'first_name' => 'first_name',
   'last_name' => 'last_name',
-  'number' => 'street_number',
+  'num' => 'street_number',
   'street_name' => 'street_name',
   'unit' => 'apt_unit_no',
   'birth_date' => 'birth_date',
@@ -57,8 +57,8 @@ $result = db_query($active_db, "SELECT * FROM $viewname");
 
 
 $time = date('Y-m-d_h-j');
-$html_fp = fopen("./$viewname_$time.html", 'w');
-$csv_fp = fopen("./$viewname-update_$time.csv", 'w');
+$html_fp = fopen("./{$viewname}_{$time}.html", 'w');
+$csv_fp = fopen("./{$viewname}-update_{$time}.csv", 'w');
 
 $head = <<<EOHEAD
 <!DOCTYPE HTML>
