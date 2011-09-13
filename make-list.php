@@ -67,7 +67,7 @@ $head = <<<EOHEAD
 <title>$viewname | $time</title>
 <style>
 table#walk-list {
-  width: 58em;
+  width: 68em;
 }
 #walk-list tr th.note {
   padding-right: 10em;
