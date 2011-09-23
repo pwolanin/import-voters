@@ -83,7 +83,6 @@ table#walk-list {
 </style>
 </head>
 <body>
-
 <table id="walk-list">
 EOHEAD;
 
@@ -97,12 +96,15 @@ $html .= "</th></tr>\n";
 fwrite($html_fp, $html);
 fputcsv($csv_fp, array_keys($csv_columns));
 
+$doors = array();
 $zebra = 0;
 while ($row = db_fetch_array($result)) {
   $html_row = array();
   foreach($html_columns as $ref) {
     $html_row[] = isset($row[$ref]) ? $row[$ref] : $ref;
   }
+  $address = $row['street_number'] . '_' . $row['street_name'] . '_' . $row['apt_unit_no'];
+  $doors[$address] = TRUE;
   $html = '<td>' . implode('</td><td>', $html_row) . "</td></tr>\n";
   // Mark odd rows with a class.
   $html = ($zebra % 2 == 1) ? '<tr class="odd">' . $html : '<tr>' . $html;
@@ -114,7 +116,8 @@ while ($row = db_fetch_array($result)) {
   fputcsv($csv_fp, $csv_row);
   $zebra++;
 }
-fwrite($html_fp, "</table>\n</body>\n</html>\n");
+
+fwrite($html_fp, "</table>\n<p>" . count($doors) . " doors</p></body>\n</html>\n");
 fclose($csv_fp);
 fclose($html_fp);
 exit;
