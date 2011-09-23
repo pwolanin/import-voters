@@ -32,6 +32,7 @@ $active_db = db_connect($db_url);
 $html_columns = array(
   ' ' => ' ',
   'code' => 'Y LY U LN N W ',
+  'phone' => 'home_phone',
   'first_name' => 'first_name',
   'last_name' => 'last_name',
   'num' => 'street_number',
@@ -46,6 +47,7 @@ $csv_columns = array(
   'voter_id' => 'voter_id',
   'code' => ' ',
   'note' => ' ',
+  'phone' => 'home_phone',
   'first_name' => 'first_name',
   'last_name' => 'last_name',
   'number' => 'street_number',
@@ -57,8 +59,8 @@ $result = db_query($active_db, "SELECT * FROM $viewname");
 
 
 $time = date('Y-m-d_h-j');
-$html_fp = fopen("./{$viewname}_{$time}.html", 'w');
-$csv_fp = fopen("./{$viewname}-update_{$time}.csv", 'w');
+$html_fp = fopen("./phone-{$viewname}_{$time}.html", 'w');
+$csv_fp = fopen("./phone-{$viewname}-update_{$time}.csv", 'w');
 
 $head = <<<EOHEAD
 <!DOCTYPE HTML>
@@ -66,24 +68,24 @@ $head = <<<EOHEAD
 <head>
 <title>$viewname | $time</title>
 <style>
-table#walk-list {
+table#phone-list {
   width: 68em;
 }
-#walk-list tr th.note {
-  padding-right: 10em;
+#phone-list tr th.note {
+  padding-right: 5em;
 }
-#walk-list tr td {
+#phone-list tr td {
   background-color: #fff;
   padding-left: 0.5em;
   border-left: solid 1px;
 }
-#walk-list tr.odd td {
+#phone-list tr.odd td {
   background-color: #eee;
 }
 </style>
 </head>
 <body>
-<table id="walk-list">
+<table id="phone-list">
 EOHEAD;
 
 fwrite($html_fp, $head);
@@ -99,6 +101,9 @@ fputcsv($csv_fp, array_keys($csv_columns));
 $doors = array();
 $zebra = 0;
 while ($row = db_fetch_array($result)) {
+  if (empty($row['home_phone'])) {
+    continue;
+  }
   $html_row = array();
   foreach($html_columns as $ref) {
     $html_row[] = isset($row[$ref]) ? $row[$ref] : $ref;
