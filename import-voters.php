@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS `voter_contact` (
   voter_id VARCHAR(9) NOT NULL,
   code VARCHAR(4),
   note TEXT,
+  litdrop INT,
   ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (voter_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
