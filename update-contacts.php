@@ -62,10 +62,10 @@ while (($data = fgetcsv($handle, 1000)) !== FALSE) {
   $note = $data[$idx['note']];
   // Only write real contacts to the DB.
   if (strlen($code)) {
-    db_query($active_db, "REPLACE INTO voter_contact (voter_id, code, note, litdrop) VALUES ('%s', '%s', '%s', 1)", array($id, $code, $note));
+    db_query($active_db, "INSERT INTO voter_contact (voter_id, code, note, litdrop) VALUES ('%s', '%s', '%s', 1) ON DUPLICATE KEY UPDATE code = VALUES(code), note = VALUES(note), litdrop = 1", array($id, $code, $note));
   }
   else {
-    db_query($active_db, "REPLACE INTO voter_contact (voter_id, code, note, litdrop) VALUES ('%s', NULL, '%s', 1)", array($id, $note));
+    db_query($active_db, "INSERT INTO voter_contact (voter_id, code, note, litdrop) VALUES ('%s', NULL, '%s', 1) ON DUPLICATE KEY UPDATE note = VALUES(note), litdrop = 1", array($id, $note));
   }
 }
 

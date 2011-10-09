@@ -36,7 +36,7 @@ $html_columns = array(
   'last_name' => 'last_name',
   'num' => 'street_number',
   'street_name' => 'street_name',
-  'unit' => 'apt_unit_no',
+  'unit' => array('suffix_a', 'suffix_b', 'apt_unit_no'),
   'birth_date' => 'birth_date',
   'party' => 'party_code',
   'note' => ' ',
@@ -50,7 +50,7 @@ $csv_columns = array(
   'last_name' => 'last_name',
   'number' => 'street_number',
   'street_name' => 'street_name',
-  'unit' => 'apt_unit_no',
+  'unit' => array('suffix_a', 'suffix_b', 'apt_unit_no'),
 );
 
 $result = db_query($active_db, "SELECT * FROM $viewname");
@@ -99,20 +99,14 @@ fputcsv($csv_fp, array_keys($csv_columns));
 $doors = array();
 $zebra = 0;
 while ($row = db_fetch_array($result)) {
-  $html_row = array();
-  foreach($html_columns as $ref) {
-    $html_row[] = isset($row[$ref]) ? $row[$ref] : $ref;
-  }
-  $address = $row['street_number'] . '_' . $row['street_name'] . '_' . $row['apt_unit_no'];
+  $html_row = build_row_cells($row, $html_columns);
+  $address = $row['street_number'] . '|' . $row['street_name'] . '|' . $row['apt_unit_no'] . '|' . $row['suffix_a'] . '|' . $row['suffix_b'];
   $doors[$address] = TRUE;
   $html = '<td>' . implode('</td><td>', $html_row) . "</td></tr>\n";
   // Mark odd rows with a class.
   $html = ($zebra % 2 == 1) ? '<tr class="odd">' . $html : '<tr>' . $html;
   fwrite($html_fp, $html);
-  $csv_row = array();
-  foreach($csv_columns as $ref) {
-    $csv_row[] = isset($row[$ref]) ? $row[$ref] : $ref;
-  }
+  $csv_row = build_row_cells($row, $csv_columns);
   fputcsv($csv_fp, $csv_row);
   $zebra++;
 }
@@ -122,3 +116,22 @@ fclose($csv_fp);
 fclose($html_fp);
 exit;
 
+
+function build_row_cells($data, $columns) {
+  $row = array();
+  foreach($columns as $ref) {
+    if (is_array($ref)) {
+      $combined = '';
+      foreach ($ref as $sub) {
+        if (strlen($data[$sub])) {
+          $combined = $data[$sub] . ' ';
+        }
+      }
+      $row[] = trim($combined);
+    }
+    else {
+      $row[] = isset($data[$ref]) ? $data[$ref] : $ref;
+    }
+  }
+  return $row;
+}
