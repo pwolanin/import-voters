@@ -86,6 +86,15 @@ CREATE TABLE IF NOT EXISTS `voters` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 OESQL1;
 
+$sql_doors = <<<OESQL1
+CREATE TABLE IF NOT EXISTS `voter_doors` (
+  voter_id VARCHAR(9) NOT NULL,
+  door VARCHAR(255),
+  PRIMARY KEY (voter_id),
+  KEY last_name (door)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+OESQL1;
+
 $sql2 = <<<OESQL2
 
 CREATE TABLE IF NOT EXISTS `vote_history` (
@@ -124,6 +133,7 @@ CREATE TABLE IF NOT EXISTS `van_info` (
 OESQL4;
 
 db_query($active_db, $sql1);
+db_query($active_db, $sql_doors);
 db_query($active_db, $sql2);
 db_query($active_db, $sql3);
 db_query($active_db, $sql4);
@@ -166,6 +176,8 @@ foreach ($lines as $i => $l) {
 // Write the last one.
 voter_write_data($active_db, $voter_rows);
 
+db_query($active_db, "TRUNCATE voter_doors");
+db_query($active_db, "INSERT INTO voter_doors (voter_id, door) SELECT voter_id, CONCAT_WS('@', street_name, street_number, suffix_a, suffix_b, apt_unit_no, mailing_street_name2, mailing_street_name3, zip5) FROM voters");
 
 exit;
 

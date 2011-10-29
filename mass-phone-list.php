@@ -31,7 +31,8 @@ $active_db = db_connect($db_url);
 
 $html_columns = array(
   ' ' => ' ',
-  'code' => 'Y LY U LN N W ',
+  'code' => 'Y LY U LN N W V R',
+  'phone' => 'home_phone',
   'first_name' => 'first_name',
   'last_name' => 'last_name',
   'num' => 'street_number',
@@ -46,6 +47,7 @@ $csv_columns = array(
   'voter_id' => 'voter_id',
   'code' => ' ',
   'note' => ' ',
+  'phone' => 'home_phone',
   'first_name' => 'first_name',
   'last_name' => 'last_name',
   'number' => 'street_number',
@@ -53,74 +55,97 @@ $csv_columns = array(
   'unit' => array('suffix_a', 'suffix_b', 'apt_unit_no'),
 );
 
+
 $result = db_query($active_db, "
 SELECT v.*, vi.home_phone FROM voters v 
 LEFT JOIN van_info vi ON v.voter_id = vi.voter_id
 INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
 WHERE vd.door IN (SELECT vd.door FROM $viewname v INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id)
-ORDER BY v.street_name ASC, v.street_number ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC, v.last_name ASC");
+ORDER BY v.street_name ASC, v.street_number ASC, v.suffix_a ASC, v.suffix_b ASC, v.apt_unit_no ASC, v.last_name ASC, v.first_name ASC");
+
+$all_doors = array();
+while ($row = db_fetch_array($result)) {
+  if (empty($row['home_phone'])) {
+    continue;
+  }
+  $address = $row['street_number'] . '|' . $row['street_name'] . '|' . $row['apt_unit_no'] . '|' . $row['suffix_a'] . '|' . $row['suffix_b'];
+  $all_doors[$address][] = $row;
+}
+
+$chunks = array_chunk($all_doors, 20);
+
+foreach ($chunks as $idx => $doors) {
+  list($html_fp, $csv_fp) = open_files($idx + 1, $viewname, $html_columns, $csv_columns);
+  $zebra = 0;
+  foreach ($doors as $h) {
+    foreach ($h as $row) {
+      $html_row = build_row_cells($row, $html_columns);
+      $html = '<td>' . implode('</td><td>', $html_row) . "</td></tr>\n";
+      // Mark odd rows with a class.
+      $html = ($zebra % 2 == 1) ? '<tr class="odd">' . $html : '<tr>' . $html;
+      fwrite($html_fp, $html);
+      $csv_row = build_row_cells($row, $csv_columns);
+      fputcsv($csv_fp, $csv_row);
+      $zebra++;
+    }
+  }
+  close_files($doors, $html_fp, $csv_fp);
+}
+
+exit;
 
 
-$time = date('Y-m-d_h-j');
-$html_fp = fopen("./{$viewname}_{$time}.html", 'w');
-$csv_fp = fopen("./{$viewname}-update_{$time}.csv", 'w');
+function open_files($file_no, $viewname, $html_columns, $csv_columns) {
 
-$head = <<<EOHEAD
+  $file = sprintf('%02d', $file_no);
+  $time = date('Y-m-d');
+  $html_fp = fopen("./phone-{$viewname}_{$file}_{$time}_.html", 'w');
+  $csv_fp = fopen("./phone-{$viewname}-{$file}_update_{$time}.csv", 'w');
+
+  $head = <<<EOHEAD
 <!DOCTYPE HTML>
 <html>
 <head>
 <title>$viewname | $time</title>
 <style>
-table#walk-list {
+table#phone-list {
   width: 68em;
 }
-#walk-list tr th.note {
-  padding-right: 10em;
+#phone-list tr th.note {
+  padding-right: 5em;
 }
-#walk-list tr td {
+#phone-list tr td {
   background-color: #fff;
   padding-left: 0.5em;
   border-left: solid 1px;
 }
-#walk-list tr.odd td {
+#phone-list tr.odd td {
   background-color: #eee;
 }
 </style>
 </head>
 <body>
-<table id="walk-list">
+<p>List: {$viewname}_{$file}_{$time}</p>
+<table id="phone-list">
 EOHEAD;
 
-fwrite($html_fp, $head);
-
-$html = '<tr>';
-foreach ($html_columns as $key => $ref) {
-  $html .= "<th class=\"$key\">$key</th>";
-}
-$html .= "</th></tr>\n";
-fwrite($html_fp, $html);
-fputcsv($csv_fp, array_keys($csv_columns));
-
-$doors = array();
-$zebra = 0;
-while ($row = db_fetch_array($result)) {
-  $html_row = build_row_cells($row, $html_columns);
-  $address = $row['street_number'] . '|' . $row['street_name'] . '|' . $row['apt_unit_no'] . '|' . $row['suffix_a'] . '|' . $row['suffix_b'];
-  $doors[$address] = TRUE;
-  $html = '<td>' . implode('</td><td>', $html_row) . "</td></tr>\n";
-  // Mark odd rows with a class.
-  $html = ($zebra % 2 == 1) ? '<tr class="odd">' . $html : '<tr>' . $html;
+  fwrite($html_fp, $head);
+  
+  $html = '<tr>';
+  foreach ($html_columns as $key => $ref) {
+    $html .= "<th class=\"$key\">$key</th>";
+  }
+  $html .= "</th></tr>\n";
   fwrite($html_fp, $html);
-  $csv_row = build_row_cells($row, $csv_columns);
-  fputcsv($csv_fp, $csv_row);
-  $zebra++;
+  fputcsv($csv_fp, array_keys($csv_columns));
+  return array($html_fp, $csv_fp);
 }
 
-fwrite($html_fp, "</table>\n<p>" . count($doors) . " doors</p></body>\n</html>\n");
-fclose($csv_fp);
-fclose($html_fp);
-exit;
-
+function close_files($doors, $html_fp, $csv_fp) {
+  fwrite($html_fp, "</table>\n<p>" . count($doors) . " doors</p></body>\n</html>\n");
+  fclose($csv_fp);
+  fclose($html_fp);
+}
 
 function build_row_cells($data, $columns) {
   $row = array();
