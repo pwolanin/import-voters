@@ -61,7 +61,7 @@ WHERE vd.door IN (SELECT vd.door FROM $viewname v INNER JOIN voter_doors vd ON v
 ORDER BY v.street_name ASC, v.street_number ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC, v.last_name ASC");
 
 
-$time = date('Y-m-d_h-j');
+$time = date('Y-m-d_h-i');
 $html_fp = fopen("./{$viewname}_{$time}.html", 'w');
 $csv_fp = fopen("./{$viewname}-update_{$time}.csv", 'w');
 

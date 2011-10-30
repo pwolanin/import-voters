@@ -57,22 +57,23 @@ $csv_columns = array(
 
 
 $result = db_query($active_db, "
-SELECT v.*, vi.home_phone FROM voters v 
+SELECT v.*, IF(vi.home_phone IS NOT NULL, vi.home_phone, '') AS home_phone FROM voters v 
 LEFT JOIN van_info vi ON v.voter_id = vi.voter_id
+LEFT JOIN voter_contact vc ON vc.voter_id = v.voter_id
 INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
-WHERE vd.door IN (SELECT vd.door FROM $viewname v INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id)
-ORDER BY v.street_name ASC, v.street_number ASC, v.suffix_a ASC, v.suffix_b ASC, v.apt_unit_no ASC, v.last_name ASC, v.first_name ASC");
+WHERE vd.door IN (SELECT vd2.door FROM $viewname v2 INNER JOIN voter_doors vd2 ON v2.voter_id = vd2.voter_id)
+AND vc.code IS NULL
+ORDER BY v.street_name ASC, v.street_number ASC, v.suffix_a ASC, v.suffix_b ASC, v.apt_unit_no ASC, vi.home_phone DESC, v.last_name ASC, v.first_name ASC");
 
 $all_doors = array();
 while ($row = db_fetch_array($result)) {
-  if (empty($row['home_phone'])) {
-    continue;
-  }
   $address = $row['street_number'] . '|' . $row['street_name'] . '|' . $row['apt_unit_no'] . '|' . $row['suffix_a'] . '|' . $row['suffix_b'];
   $all_doors[$address][] = $row;
 }
 
-$chunks = array_chunk($all_doors, 20);
+$all_doors = array_filter($all_doors, 'address_has_home_phone');
+
+$chunks = array_chunk($all_doors, 15);
 
 foreach ($chunks as $idx => $doors) {
   list($html_fp, $csv_fp) = open_files($idx + 1, $viewname, $html_columns, $csv_columns);
@@ -94,11 +95,19 @@ foreach ($chunks as $idx => $doors) {
 
 exit;
 
+function address_has_home_phone($address) {
+  foreach ($address as $row) {
+    if (!empty($row['home_phone'])) {
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
 
 function open_files($file_no, $viewname, $html_columns, $csv_columns) {
 
   $file = sprintf('%02d', $file_no);
-  $time = date('Y-m-d');
+  $time = date('Y-m-d_h-i');
   $html_fp = fopen("./phone-{$viewname}_{$file}_{$time}_.html", 'w');
   $csv_fp = fopen("./phone-{$viewname}-{$file}_update_{$time}.csv", 'w');
 
@@ -106,7 +115,7 @@ function open_files($file_no, $viewname, $html_columns, $csv_columns) {
 <!DOCTYPE HTML>
 <html>
 <head>
-<title>$viewname | $time</title>
+<title>{$viewname}_{$file}_{$time}</title>
 <style>
 table#phone-list {
   width: 68em;
