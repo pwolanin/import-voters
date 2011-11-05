@@ -31,7 +31,7 @@ $active_db = db_connect($db_url);
 
 $html_columns = array(
   ' ' => ' ',
-  'code' => 'Y LY U LN N W ',
+  'code' => 'Y LY U LN N W R',
   'first_name' => 'first_name',
   'last_name' => 'last_name',
   'num' => 'street_number',
@@ -69,7 +69,7 @@ $head = <<<EOHEAD
 <!DOCTYPE HTML>
 <html>
 <head>
-<title>$viewname | $time</title>
+<title>{$viewname}_{$time}</title>
 <style>
 table#walk-list {
   width: 68em;
@@ -88,6 +88,7 @@ table#walk-list {
 </style>
 </head>
 <body>
+<p>List: {$viewname}_{$time}</p>
 <table id="walk-list">
 EOHEAD;
 

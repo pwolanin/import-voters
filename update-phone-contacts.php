@@ -66,7 +66,7 @@ while (($data = fgetcsv($handle, 1000)) !== FALSE) {
       // Bad phone number.
       db_query($active_db, "DELETE FROM van_info WHERE voter_id = '%s'", array($id));
     }
-    else {
+    if ($code != 'X') {
       db_query($active_db, "INSERT INTO voter_contact (voter_id, code, note) VALUES ('%s', '%s', '%s') ON DUPLICATE KEY UPDATE code = VALUES(code), note = CONCAT_WS(',', note, VALUES(note))", array($id, $code, $note));
     }
   }
