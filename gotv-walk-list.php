@@ -50,6 +50,7 @@ LEFT JOIN van_info vi ON v.voter_id = vi.voter_id
 INNER JOIN voter_contact vc ON v.voter_id = vc.voter_id
 INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
 WHERE vd.door IN (SELECT vd.door FROM $viewname v INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id)
+AND vc.code NOT IN ('W', 'V')
 GROUP BY vd.door
 ORDER BY v.street_name ASC, v.street_number ASC, v.suffix_a ASC, v.suffix_b ASC, v.apt_unit_no ASC, vi.home_phone DESC, v.last_name ASC, v.first_name ASC");
 
