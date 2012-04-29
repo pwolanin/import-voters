@@ -10,11 +10,10 @@
 
 date_default_timezone_set('UTC');
 ini_set('memory_limit', '256M');
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
 
 define('DRUPAL_ROOT', dirname(__FILE__));
-
-require_ince DRUPAL_ROOT . '/includes/unicode.inc';
-require_ince DRUPAL_ROOT . '/includes/database.inc';
 
 /**
  * No-op function to avoid needing to alter the DBTNG source.
@@ -36,3 +35,9 @@ else {
 }
 
 include $settings_file;
+
+require_once DRUPAL_ROOT . '/includes/unicode.inc';
+// Initialize the database system. Note that the connection
+// won't be initialized until it is actually requested.
+require_once DRUPAL_ROOT . '/includes/database/database.inc';
+
