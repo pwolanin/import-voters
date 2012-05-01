@@ -13,8 +13,8 @@ date_default_timezone_set('UTC');
 ini_set('memory_limit', '256M');
 
 // The CSV files, at least, have an extra trailing delimiter. So the
-// expected number of fileds is on more than the real number we use.
-define('EXPECTED_NUM_FIELDS', 47);
+// expected number of fileds is one more than the real number we use.
+define('EXPECTED_NUM_FIELDS', 26);
 
 if (count($argv) < 2) {
   exit("usage: {$argv[0]} filename\n");

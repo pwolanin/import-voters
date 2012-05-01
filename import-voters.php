@@ -13,22 +13,11 @@ require_once dirname(__FILE__) . '/db-helper.php';
 
 // The CSV files, at least, have an extra trailing delimiter. So the
 // expected number of fileds is on more than the real number we use.
-define('EXPECTED_NUM_FIELDS', 47);
+define('EXPECTED_NUM_FIELDS', 26);
 
-// Optionally include the DB url from a file.
-if (file_exists('./settings.php')) {
-  include './settings.php';
-}
 
-if (count($argv) < 2 && isset($db_url)) {
-  exit("usage: {$argv[0]} voterfile");
-}
-elseif (count($argv) < 3 && !isset($db_url)) {
-  exit("usage: {$argv[0]} voterfile mysqli_connection_url\n\nA valid connection URL looks like 'mysqli://myname:pass@127.0.0.1:3306/voterdbname'\n");
-}
-
-if (isset($argv[2])) {
-  $db_url = $argv[2];
+if (count($argv) < 2) {
+  exit("usage: {$argv[0]} voterfile\n\n");
 }
 
 $filename = $argv[1];
@@ -36,7 +25,246 @@ if (!file_exists($filename) || !is_readable($filename)) {
   exit("File {$filename} does not exist or cannot be read\n");
 }
 
-$active_db = db_connect($db_url);
+
+$schema['voters'] = array(
+  'fields' => array(
+    'county' => array(
+      'type' => 'varchar',
+      'length' => 30,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'voter_id' => array(
+      'type' => 'varchar',
+      'length' => 9,
+      'not null' => TRUE,
+    ),
+    'legacy_id' => array(
+      'type' => 'varchar',
+      'length' => 9,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'last_name' => array(
+      'type' => 'varchar',
+      'length' => 40,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'first_name' => array(
+      'type' => 'varchar',
+      'length' => 30,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'middle_name' => array(
+      'type' => 'varchar',
+      'length' => 30,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'suffix' => array(
+      'type' => 'varchar',
+      'length' => 5,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'street_number' => array(
+      'type' => 'int',
+      'length' => 20,
+    ),
+    'suffix_a' => array(
+      'type' => 'varchar',
+      'length' => 8,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'suffix_b' => array(
+      'type' => 'varchar',
+      'length' => 4,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'street_name' => array(
+      'type' => 'varchar',
+      'length' => 50,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'apt_unit_no' => array(
+      'type' => 'varchar',
+      'length' => 8,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'city' => array(
+      'type' => 'varchar',
+      'length' => 30,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'municipality' => array(
+      'type' => 'varchar',
+      'length' => 30,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'zip5' => array(
+      'type' => 'varchar',
+      'length' => 5,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'date_of_birth' => array(
+      'type' => 'varchar',
+      'length' => 10,
+      'not null' => TRUE,
+    ),
+    'party_code' => array(
+      'type' => 'varchar',
+      'length' => 5,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'ward' => array(
+      'type' => 'varchar',
+      'length' => 2,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'district' => array(
+      'type' => 'varchar',
+      'length' => 2,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'status' => array(
+      'type' => 'varchar',
+      'length' => 30,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'congressional' => array(
+      'type' => 'varchar',
+      'length' => 4,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'legislative' => array(
+      'type' => 'varchar',
+      'length' => 4,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'freeholder' => array(
+      'type' => 'varchar',
+      'length' => 4,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'school' => array(
+      'type' => 'varchar',
+      'length' => 4,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'regional_school' => array(
+      'type' => 'varchar',
+      'length' => 4,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'fire' => array(
+      'type' => 'varchar',
+      'length' => 4,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+  ),
+  'primary key' => array('voter_id'),
+  'indexes' => array(
+    'party_code' => array('party_code'), 
+    'last_name' => array('last_name'),
+    'municipality' => array('municipality'),
+   ),
+);
+
+$voter_fields = array_keys($schema['voters']['fields']);
+
+
+if (!db_table_exists('voters')) {
+  db_create_table('voters', $schema['voters']);
+}
+
+$schema['voter_doors'] = array(
+  'fields' => array(
+    'voter_id' => array(
+      'type' => 'varchar',
+      'length' => 9,
+      'not null' => TRUE,
+    ),
+    'door' => array(
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+  ),
+  'primary key' => array('voter_id'),
+  'indexes' => array(
+    'door' => array('door'),
+  ),
+);
+
+if (!db_table_exists('voter_doors')) {
+  db_create_table('voter_doors', $schema['voter_doors']);
+}
+
+$handle = @fopen($filename, "r");
+if (!$handle) {
+  echo "Faile to open file\n";
+  exit;
+}
+
+db_truncate("voters")->execute();
+
+$delimiter = NULL;
+
+while (($line = fgets($handle)) !== FALSE) {
+
+  if (!isset($delimiter)) {
+    $delimiter = ','; // CSV default
+    if (count(explode('|', $line)) >= EXPECTED_NUM_FIELDS) {
+      $delimiter = '|'; // Pipe delimited
+    }
+  }
+  $voter = explode($delimiter, $line);
+  if (count($voter) != EXPECTED_NUM_FIELDS) {
+    echo "Invalid line: {$line}\n";
+    continue;
+  }
+  $voter[15] = voter_reformat_date($voter[15]);
+  db_insert('voters')
+    ->fields($voter_fields)
+    ->values($voter)
+    ->execute();
+}
+if (!feof($handle)) {
+  echo "Error: unexpected fgets() fail\n";
+}
+fclose($handle);
+
+db_truncate("voter_doors")->execute();
+db_query("INSERT INTO voter_doors (voter_id, door) SELECT voter_id, CONCAT(street_name, '@', street_number, '@', suffix_a, '@', suffix_b, '@', apt_unit_no, '@', zip5) FROM voters");
+
+exit;
+
+function voter_reformat_date($str) {
+  $parts = explode('/', $str);
+  return "{$parts[2]}-{$parts[0]}-{$parts[1]}";
+}
+
+
 
 
 $sql1 = <<<OESQL1
@@ -121,88 +349,3 @@ CREATE TABLE IF NOT EXISTS `voter_contact` (
   PRIMARY KEY (voter_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 OESQL3;
-
-$sql4 = <<<OESQL4
-CREATE TABLE IF NOT EXISTS `van_info` (
-  voter_id VARCHAR(9) NOT NULL,
-  van_id VARCHAR(9) NOT NULL,
-  home_phone VARCHAR(20),
-  PRIMARY KEY (voter_id),
-  UNIQUE KEY van_id (van_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-OESQL4;
-
-db_query($active_db, $sql1);
-db_query($active_db, $sql_doors);
-db_query($active_db, $sql2);
-db_query($active_db, $sql3);
-db_query($active_db, $sql4);
-
-$lines = file($filename, FILE_IGNORE_NEW_LINES);
-if (!$lines) {
-  exit("No data in file {$filename}\n");
-}
-
-// This makes sure all rows for the same voter are together.
-sort($lines);
-
-$delimiter = ','; // CSV default
-if (count(explode('|', $lines[0])) >= EXPECTED_NUM_FIELDS) {
-  $delimiter = '|'; // Pipe delimited
-}
-
-$id = '';
-$voter_rows = array();
-
-foreach ($lines as $i => $l) {
-  $fields = explode($delimiter, $l);
-  $lines[$i] = NULL;
-  if (count($fields) != EXPECTED_NUM_FIELDS) {
-    echo "Invalid line: {$l}\n";
-    continue;
-  }
-  // We write each voter to avoid exhausting memory by keeping
-  // two copies of the data.
-  if ($id != $fields[0]) {
-    voter_write_data($active_db, $voter_rows);
-    $id = $fields[0];
-    $voter_rows = array();
-  }
-  // Index by voter ID and election date.
-  $date = strtotime($fields[42]);
-  $idx = $fields[0] . ':' . $date;
-  $voter_rows[$idx] = $fields;
-}
-// Write the last one.
-voter_write_data($active_db, $voter_rows);
-
-db_query($active_db, "TRUNCATE voter_doors");
-db_query($active_db, "INSERT INTO voter_doors (voter_id, door) SELECT voter_id, CONCAT_WS('@', street_name, street_number, suffix_a, suffix_b, apt_unit_no, mailing_street_name2, mailing_street_name3, zip5) FROM voters");
-
-exit;
-
-function voter_write_data($active_db, $voter_rows) {
-  // Sort on the keys so that the most recent data is last
-  // for each voter.
-  ksort($voter_rows);
-
-  $fields = NULL;
-  foreach ($voter_rows as $fields) {
-    $vote_history = array_merge(array_slice($fields, 0, 1), array_slice($fields, 38, 8));
-    $vote_history[5] = voter_reformat_date($vote_history[5]);
-    db_query($active_db, "REPLACE INTO vote_history VALUES(" . db_placeholders($vote_history, 'varchar') . ")", $vote_history);
-  }
-  if (is_array($fields)) {
-    // Write, the last, most recent, record into the voters table.
-    $voter = array_slice($fields, 0, 38);
-    $voter[32] = voter_reformat_date($voter[32]);
-    $voter[33] = voter_reformat_date($voter[33]);
-    db_query($active_db, "REPLACE INTO voters VALUES(" . db_placeholders($voter, 'varchar') . ")", $voter);
-  }
-}
-
-function voter_reformat_date($str) {
-  $parts = explode('/', $str);
-  return "{$parts[2]}-{$parts[0]}-{$parts[1]}";
-}
-
