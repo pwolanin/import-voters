@@ -164,19 +164,19 @@ $schema['voters'] = array(
     ),
     'school' => array(
       'type' => 'varchar',
-      'length' => 4,
+      'length' => 8,
       'not null' => TRUE,
       'default' => '',
     ),
     'regional_school' => array(
       'type' => 'varchar',
-      'length' => 4,
+      'length' => 8,
       'not null' => TRUE,
       'default' => '',
     ),
     'fire' => array(
       'type' => 'varchar',
-      'length' => 4,
+      'length' => 8,
       'not null' => TRUE,
       'default' => '',
     ),
@@ -243,11 +243,23 @@ while (($line = fgets($handle)) !== FALSE) {
     echo "Invalid line: {$line}\n";
     continue;
   }
+  foreach ($voter as $idx => $field) {
+    $voter[$idx] = trim($field);
+  }
+  // Truncate zip5 to actually 5 digits (some looked like '085423347').
+  $voter[14] = substr($voter[14], 0, 5);
   $voter[15] = voter_reformat_date($voter[15]);
-  db_insert('voters')
-    ->fields($voter_fields)
-    ->values($voter)
-    ->execute();
+  try {
+    db_insert('voters')
+      ->fields($voter_fields)
+      ->values($voter)
+      ->execute();
+  }
+  catch (PDOException $e) {
+    // Dump the bad data for inspection.
+    print_r($voter);
+    throw $e;
+  }
 }
 if (!feof($handle)) {
   echo "Error: unexpected fgets() fail\n";
@@ -265,87 +277,3 @@ function voter_reformat_date($str) {
 }
 
 
-
-
-$sql1 = <<<OESQL1
-
-CREATE TABLE IF NOT EXISTS `voters` (
-  voter_id VARCHAR(9) NOT NULL,
-  status_code VARCHAR(1),
-  party_code VARCHAR(5),
-  ballot_type VARCHAR(2),
-  last_name VARCHAR(40),
-  first_name VARCHAR(30),
-  middle_name VARCHAR(30),
-  prefix VARCHAR(5),
-  suffix VARCHAR(5),
-  sex VARCHAR(1),
-  street_number INT,
-  suffix_a VARCHAR(8),
-  suffix_b VARCHAR(3),
-  street_name VARCHAR(50),
-  apt_unit_no VARCHAR(8),
-  street_name_2 VARCHAR(50),
-  street_name_3 VARCHAR(50),
-  city VARCHAR(30),
-  state VARCHAR(2),
-  zip5 VARCHAR(5),
-  zip4 VARCHAR(4),
-  mailing_street_number INT,
-  mailing_suffix_a VARCHAR(8),
-  mailing_suffix_b VARCHAR(3),
-  mailing_street_name1 VARCHAR(50),
-  mailing_apt_unit_no VARCHAR(8),
-  mailing_street_name2 VARCHAR(50),
-  mailing_street_name3 VARCHAR(50),
-  mailing_city VARCHAR(30),
-  mailing_state VARCHAR(2),
-  mailing_country VARCHAR(30),
-  mailing_zip_code VARCHAR(10),
-  birth_date DATE NOT NULL,
-  date_registered DATE NOT NULL,
-  county_precinct VARCHAR(7),
-  municipality VARCHAR(20),
-  ward VARCHAR(2),
-  district VARCHAR(2),
-  PRIMARY KEY (voter_id),
-  KEY party_code (party_code),
-  KEY last_name (last_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-OESQL1;
-
-$sql_doors = <<<OESQL1
-CREATE TABLE IF NOT EXISTS `voter_doors` (
-  voter_id VARCHAR(9) NOT NULL,
-  door VARCHAR(255),
-  PRIMARY KEY (voter_id),
-  KEY last_name (door)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-OESQL1;
-
-$sql2 = <<<OESQL2
-
-CREATE TABLE IF NOT EXISTS `vote_history` (
-  voter_id VARCHAR(9) NOT NULL,
-  municipality_voted_in VARCHAR(20),
-  ward_voted_in VARCHAR(2),
-  district_voted_in VARCHAR(2),
-  party_voted VARCHAR(3),
-  election_date DATE NOT NULL,
-  election_name VARCHAR(40),
-  election_type VARCHAR(1),
-  election_category VARCHAR(1),
-  PRIMARY KEY (voter_id, election_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-OESQL2;
-
-$sql3 = <<<OESQL3
-CREATE TABLE IF NOT EXISTS `voter_contact` (
-  voter_id VARCHAR(9) NOT NULL,
-  code VARCHAR(4),
-  note TEXT,
-  litdrop INT,
-  ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (voter_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-OESQL3;
