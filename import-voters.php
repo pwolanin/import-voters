@@ -35,13 +35,12 @@ $schema['voters'] = array(
       'default' => '',
     ),
     'voter_id' => array(
-      'type' => 'varchar',
-      'length' => 9,
+      'type' => 'int',
       'not null' => TRUE,
     ),
     'legacy_id' => array(
       'type' => 'varchar',
-      'length' => 9,
+      'length' => 30,
       'not null' => TRUE,
       'default' => '',
     ),
@@ -70,7 +69,7 @@ $schema['voters'] = array(
       'default' => '',
     ),
     'street_number' => array(
-      'type' => 'int',
+      'type' => 'varchar',
       'length' => 20,
     ),
     'suffix_a' => array(
@@ -180,6 +179,11 @@ $schema['voters'] = array(
       'not null' => TRUE,
       'default' => '',
     ),
+    'street_num_int' => array(
+      'type' => 'int',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
   ),
   'primary key' => array('voter_id'),
   'indexes' => array(
@@ -192,15 +196,12 @@ $schema['voters'] = array(
 $voter_fields = array_keys($schema['voters']['fields']);
 
 
-if (!db_table_exists('voters')) {
-  db_create_table('voters', $schema['voters']);
-}
+
 
 $schema['voter_doors'] = array(
   'fields' => array(
     'voter_id' => array(
-      'type' => 'varchar',
-      'length' => 9,
+      'type' => 'int',
       'not null' => TRUE,
     ),
     'door' => array(
@@ -216,9 +217,6 @@ $schema['voter_doors'] = array(
   ),
 );
 
-if (!db_table_exists('voter_doors')) {
-  db_create_table('voter_doors', $schema['voter_doors']);
-}
 
 $handle = @fopen($filename, "r");
 if (!$handle) {
@@ -226,9 +224,26 @@ if (!$handle) {
   exit;
 }
 
-db_truncate("voters")->execute();
+
+if (db_table_exists('voters')) {
+  db_drop_table('voters');
+}
+$table = $schema['voters'];
+// Do inserts without indexes for speed.
+unset($table['indexes']);
+db_create_table('voters', $table);
+
+if (db_table_exists('voter_doors')) {
+  db_drop_table('voter_doors');
+}
+$table = $schema['voter_doors'];
+// Do inserts without indexes for speed.
+unset($table['indexes']);
+db_create_table('voter_doors', $table);
 
 $delimiter = NULL;
+$rows = 0;
+$start = time();
 
 while (($line = fgets($handle)) !== FALSE) {
 
@@ -249,6 +264,7 @@ while (($line = fgets($handle)) !== FALSE) {
   // Truncate zip5 to actually 5 digits (some looked like '085423347').
   $voter[14] = substr($voter[14], 0, 5);
   $voter[15] = voter_reformat_date($voter[15]);
+  $voter[26] = intval($voter[7]);
   try {
     db_insert('voters')
       ->fields($voter_fields)
@@ -260,14 +276,24 @@ while (($line = fgets($handle)) !== FALSE) {
     print_r($voter);
     throw $e;
   }
+  if (++$rows % 5000 == 0) {
+    $elapsed = time() - $start;
+    echo "Done $rows rows in $elapsed sec\n";
+  }
 }
 if (!feof($handle)) {
   echo "Error: unexpected fgets() fail\n";
 }
 fclose($handle);
 
-db_truncate("voter_doors")->execute();
 db_query("INSERT INTO voter_doors (voter_id, door) SELECT voter_id, CONCAT(street_name, '@', street_number, '@', suffix_a, '@', suffix_b, '@', apt_unit_no, '@', zip5) FROM voters");
+
+// Add indexes.
+foreach ($schema as $table => $info) {
+  foreach($info['indexes'] as $name => $fields) {
+    db_add_index($table, $name, $fields);
+  }
+}
 
 exit;
 
