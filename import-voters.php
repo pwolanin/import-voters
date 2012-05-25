@@ -15,16 +15,18 @@ require_once dirname(__FILE__) . '/db-helper.php';
 // expected number of fileds is on more than the real number we use.
 define('EXPECTED_NUM_FIELDS', 26);
 
+$scriptname = array_shift($argv);
 
 if (count($argv) < 2) {
-  exit("usage: {$argv[0]} voterfile\n\n");
+  exit("usage: {$scriptname} voterfile [municipal filter]\n\n");
 }
 
-$filename = $argv[1];
+$filename = array_shift($argv);
 if (!file_exists($filename) || !is_readable($filename)) {
   exit("File {$filename} does not exist or cannot be read\n");
 }
 
+$municipal_filter = array_shift($argv);
 
 $schema['voters'] = array(
   'fields' => array(
@@ -260,6 +262,9 @@ while (($line = fgets($handle)) !== FALSE) {
   }
   foreach ($voter as $idx => $field) {
     $voter[$idx] = trim($field);
+  }
+  if ($municipal_filter && $voter[13] != $municipal_filter) {
+    continue;
   }
   // Truncate zip5 to actually 5 digits (some looked like '085423347').
   $voter[14] = substr($voter[14], 0, 5);
