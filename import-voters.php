@@ -17,7 +17,7 @@ define('EXPECTED_NUM_FIELDS', 26);
 
 $scriptname = array_shift($argv);
 
-if (count($argv) < 2) {
+if (count($argv) < 1) {
   exit("usage: {$scriptname} voterfile [municipal filter]\n\n");
 }
 
