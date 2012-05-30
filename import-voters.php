@@ -2,7 +2,7 @@
 <?php
 /**
  * Portions of this code are copyrighted by the contributors to Drupal.
- * Additional code copyright 2011 by Peter Wolanin.
+ * Additional code copyright 2011-2012 by Peter Wolanin.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -10,6 +10,7 @@
  */
 
 require_once dirname(__FILE__) . '/db-helper.php';
+ini_set('auto_detect_line_endings', 1);
 
 // The CSV files, at least, have an extra trailing delimiter. So the
 // expected number of fileds is on more than the real number we use.

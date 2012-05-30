@@ -2,7 +2,7 @@
 <?php
 /**
  * Portions of this code are copyrighted by the contributors to Drupal.
- * Additional code copyright 2011 by Peter Wolanin.
+ * Additional code copyright 2011-2012 by Peter Wolanin.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
