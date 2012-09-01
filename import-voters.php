@@ -248,10 +248,14 @@ $delimiter = '|';
 $rows = 0;
 $start = time();
 
-while ($voter = fgetcsv($handle, 1000, $delimiter) !== FALSE) {
+while (($voter = fgetcsv($handle, 1000, $delimiter)) !== FALSE) {
   if (count($voter) != EXPECTED_NUM_FIELDS) {
-    echo "Invalid line: {$line}\n";
+    echo "Invalid line: " . implode($delimiter,$voter) . "\n";
     continue;
+  }
+  if (++$rows % 5000 == 0) {
+    $elapsed = time() - $start;
+    echo "Done $rows rows in $elapsed sec\n";
   }
   foreach ($voter as $idx => $field) {
     $voter[$idx] = trim($field);

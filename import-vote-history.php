@@ -142,15 +142,16 @@ $delimiter = '|';
 $rows = 0;
 $start = time();
 
-while ($fields = fgetcsv($handle, 1000, $delimiter) !== FALSE) {
+while (($fields = fgetcsv($handle, 1000, $delimiter)) !== FALSE) {
 
   if (count($fields) != EXPECTED_NUM_FIELDS) {
-    echo "Invalid line: {$line}\n";
+    echo "Invalid line: " . implode($delimiter, $fields)  . "\n";
     continue;
   }
   if ($municipal_filter && $fields[34] != $municipal_filter) {
     continue;
   }
+
   $vote_history = array_merge(array_slice($fields, 0, 3), array_slice($fields, 32, 11));
   $vote_history[3] = voter_reformat_date($vote_history[3]);
   $vote_history[9] = voter_reformat_date($vote_history[9]);
