@@ -13,13 +13,13 @@ require_once dirname(__FILE__) . '/db-helper.php';
 ini_set('auto_detect_line_endings', 1);
 
 // The CSV files, at least, have an extra trailing delimiter. So the
-// expected number of fileds is on more than the real number we use.
+// expected number of fields is one more than the real number we use.
 define('EXPECTED_NUM_FIELDS', 44);
 
 $scriptname = array_shift($argv);
 
 if (count($argv) < 1) {
-  exit("usage: {$scriptname} voterhistoryfile [filter voters]");
+  exit("usage: {$scriptname} voterhistoryfile [municipal filter]");
 }
 
 $filename = array_shift($argv);
@@ -27,8 +27,8 @@ if (!file_exists($filename) || !is_readable($filename)) {
   exit("File {$filename} does not exist or cannot be read\n");
 }
 
-// Do we want to filter based on an existin voters table?
-$voter_filter = array_shift($argv);
+// Do we want to filter based on a municipality?
+$municipal_filter = array_shift($argv);
 
 $schema['vote_history'] = array(
   'fields' => array(
@@ -59,19 +59,19 @@ $schema['vote_history'] = array(
       'not null' => TRUE,
       'default' => '',
     ),
-    'municipality_voted_in' => array(
+    'municipality' => array(
       'type' => 'varchar',
       'length' => 30,
       'not null' => TRUE,
       'default' => '',
     ),
-    'ward_voted_in' => array(
+    'ward' => array(
       'type' => 'varchar',
       'length' => 2,
       'not null' => TRUE,
       'default' => '',
     ),
-    'district_voted_in' => array(
+    'district' => array(
       'type' => 'varchar',
       'length' => 10,
       'not null' => TRUE,
@@ -115,7 +115,9 @@ $schema['vote_history'] = array(
     ),
   ),
   'primary key' => array('election_date', 'voter_id'),
-  'indexes' => array(),
+  'indexes' => array(
+    'voter_id' => array('voter_id'),
+  ),
 );
 
 $handle = @fopen($filename, "r");
@@ -135,39 +137,18 @@ db_create_table('vote_history', $table);
 
 $vote_fields = array_keys($schema['vote_history']['fields']);
 
-$voter_id_filter = array();
-if ($voter_filter) {
-  $result = db_query('SELECT voter_id FROM {voters}');
-  foreach ($result as $v) {
-    $voter_id_filter[$v->voter_id] = $v->voter_id;
-  }
-  if ($count = count($voter_id_filter)) {
-    echo "Inserts will be filtered using {$count} voter IDs\n\n";
-  }
-  else {
-    echo "No voter IDs found - results will not be filtered\n\n";
-  }
-}
-
-
-$delimiter = NULL;
+// State NJSVRS files are always pipe delimited.
+$delimiter = '|';
 $rows = 0;
 $start = time();
 
-while (($line = fgets($handle)) !== FALSE) {
+while ($fields = fgetcsv($handle, 1000, $delimiter) !== FALSE) {
 
-  if (!isset($delimiter)) {
-    $delimiter = ','; // CSV default
-    if (count(explode('|', $line)) >= EXPECTED_NUM_FIELDS) {
-      $delimiter = '|'; // Pipe delimited
-    }
-  }
-  $fields = explode($delimiter, $line);
   if (count($fields) != EXPECTED_NUM_FIELDS) {
     echo "Invalid line: {$line}\n";
     continue;
   }
-  if ($voter_id_filter && empty($voter_id_filter[$fields[0]])) {
+  if ($municipal_filter && $fields[34] != $municipal_filter) {
     continue;
   }
   $vote_history = array_merge(array_slice($fields, 0, 3), array_slice($fields, 32, 11));

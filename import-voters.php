@@ -244,19 +244,11 @@ $table = $schema['voter_doors'];
 unset($table['indexes']);
 db_create_table('voter_doors', $table);
 
-$delimiter = NULL;
+$delimiter = '|';
 $rows = 0;
 $start = time();
 
-while (($line = fgets($handle)) !== FALSE) {
-
-  if (!isset($delimiter)) {
-    $delimiter = ','; // CSV default
-    if (count(explode('|', $line)) >= EXPECTED_NUM_FIELDS) {
-      $delimiter = '|'; // Pipe delimited
-    }
-  }
-  $voter = explode($delimiter, $line);
+while ($voter = fgetcsv($handle, 1000, $delimiter) !== FALSE) {
   if (count($voter) != EXPECTED_NUM_FIELDS) {
     echo "Invalid line: {$line}\n";
     continue;
