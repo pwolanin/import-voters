@@ -18,14 +18,14 @@ if (count($argv) < 2) {
 $viewname = db_escape_table($argv[1]);
 
 $html_columns = array(
-  ' ' => ' ',
-  'code_obama' => 'Y LY U LN N W R',
-  'code_local' => 'Y LY U LN N W R',
-  'targeted' => 'targeted',
+  'knock' => ' ',
+  'code_obama' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
+  'code_local' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
+  'target' => 'target',
   'first_name' => 'first_name',
   'last_name' => 'last_name',
   'num' => 'street_number',
-  'street_name' => 'street_name',
+  'street' => 'street_name',
   'unit' => array('suffix_a', 'suffix_b', 'apt_unit_no'),
   'DOB' => 'date_of_birth',
   'party' => 'party_code',
@@ -37,16 +37,16 @@ $csv_columns = array(
   'code_obama' => ' ',
   'code_local' => ' ',
   'note' => ' ',
-  'targeted' => 'targeted',
+  'target' => 'target',
   'first_name' => 'first_name',
   'last_name' => 'last_name',
   'number' => 'street_number',
-  'street_name' => 'street_name',
+  'street' => 'street_name',
   'unit' => array('suffix_a', 'suffix_b', 'apt_unit_no'),
 );
 
 $result = db_query("
-SELECT v.*, IF (target.voter_id, 'Y', '') AS targeted FROM voters v 
+SELECT v.*, IF (target.voter_id, 'Y', '') AS target FROM voters v 
 INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
 LEFT JOIN $viewname target ON v.voter_id = target.voter_id
 WHERE v.party_code != 'REP' AND vd.door IN (SELECT vd.door FROM $viewname v INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id)
@@ -63,43 +63,60 @@ $head = <<<EOHEAD
 <head>
 <title>{$viewname}_{$time}</title>
 <style>
-table#walk-list {
+body {
+  font: Helvetica;
+  font-size: 0.7em;
+}
+table.walk-list {
   width: 85em;
 }
-#walk-list tr th.note {
-  padding-right: 5em;
+.walk-list th.note {
+  padding-right: 10em;
 }
-#walk-list tr td {
+.walk-list th.DOB {
+  width: 6em;
+}
+.walk-list th.code_local, .walk-list th.code_obama {
+  width: 9em;
+}
+.walk-list th.target, .walk-list th.unit, .walk-list th.party, .walk-list th.num, .walk-list th.knock  {
+  width: 2em;
+}
+.walk-list tr td {
   background-color: #fff;
   padding-left: 0.5em;
   border-left: solid 1px;
 }
-#walk-list tr.odd td {
+.walk-list tr.odd td {
   background-color: #eee;
 }
 </style>
 </head>
 <body>
-<p>List: {$viewname}_{$time}</p>
-<table id="walk-list">
 EOHEAD;
 
 fwrite($html_fp, $head);
 
-$html = '<tr>';
-foreach ($html_columns as $key => $ref) {
-  $html .= "<th class=\"$key\">$key</th>";
-}
-$html .= "</th></tr>\n";
-fwrite($html_fp, $html);
+$page = 1;
+$last_street_name = NULL;
+
 fputcsv($csv_fp, array_keys($csv_columns));
 
 $doors = array();
 $zebra = 0;
 foreach ($result as $row) {
+  if ($last_street_name != $row['street_name']) {
+    if (isset($last_street_name)) {
+      fwrite($html_fp, "</table>\n");
+    }
+    fwrite($html_fp, build_table_head($html_columns, $page, $viewname, $time));
+    $page++;
+    $zebra = 0;
+  }
   $html_row = build_row_cells($row, $html_columns);
   $address = $row['street_number'] . '|' . $row['street_name'] . '|' . $row['apt_unit_no'] . '|' . $row['suffix_a'] . '|' . $row['suffix_b'];
   $doors[$address] = TRUE;
+  $last_street_name = $row['street_name'];
   $html = '<td>' . implode('</td><td>', $html_row) . "</td></tr>\n";
   // Mark odd rows with a class.
   $html = ($zebra % 2 == 1) ? '<tr class="odd">' . $html : '<tr>' . $html;
@@ -114,6 +131,19 @@ fclose($csv_fp);
 fclose($html_fp);
 exit;
 
+function build_table_head($html_columns, $page, $viewname, $time) {
+$attr = ($page > 1) ? ' style="page-break-before: always;"': '';
+  $thead = <<<EOTHEAD
+<p$attr>page {$page} List: {$viewname}_{$time}</p>
+<table class="walk-list">
+<tr>
+EOTHEAD;
+  foreach ($html_columns as $key => $ref) {
+    $thead .= "<th class=\"$key\">$key</th>";
+  }
+  $thead .= "</th></tr>\n";
+  return $thead;
+}
 
 function build_row_cells($data, $columns) {
   $row = array();
