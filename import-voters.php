@@ -198,9 +198,6 @@ $schema['voters'] = array(
 
 $voter_fields = array_keys($schema['voters']['fields']);
 
-
-
-
 $schema['voter_doors'] = array(
   'fields' => array(
     'voter_id' => array(
@@ -213,6 +210,12 @@ $schema['voter_doors'] = array(
       'not null' => TRUE,
       'default' => '',
     ),
+    // This column flags households with 1 or more REP voters.
+    'rep_exists' => array(
+      'type' => 'int',
+      'not null' => TRUE,
+      'default' => 0,
+    )
   ),
   'primary key' => array('voter_id'),
   'indexes' => array(
@@ -220,6 +223,43 @@ $schema['voter_doors'] = array(
   ),
 );
 
+
+$schema['voter_contact'] = array(
+  'fields' => array(
+    'voter_id' => array(
+      'type' => 'int',
+      'not null' => TRUE,
+    ),
+    'code_obama' => array(
+      'type' => 'varchar',
+      'length' => 4,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'code_menendez' => array(
+      'type' => 'varchar',
+      'length' => 4,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'note' => array(
+      'type' => 'text',
+    ),
+    'litdrop' => array(
+      'type' => 'int',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'timestamp' => array(
+      'type' => 'int',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+  ),
+  'primary key' => array('voter_id'),
+  'indexes' => array(
+  ),
+);
 
 $handle = @fopen($filename, "r");
 if (!$handle) {
@@ -243,6 +283,10 @@ $table = $schema['voter_doors'];
 // Do inserts without indexes for speed.
 unset($table['indexes']);
 db_create_table('voter_doors', $table);
+
+if (!db_table_exists('voter_contact')) {
+  db_create_table('voter_contact', $schema['voter_contact']);
+}
 
 $delimiter = '|';
 $rows = 0;
@@ -288,7 +332,7 @@ if (!feof($handle)) {
 }
 fclose($handle);
 
-db_query("INSERT INTO voter_doors (voter_id, door) SELECT voter_id, CONCAT(street_name, '@', street_number, '@', suffix_a, '@', suffix_b, '@', apt_unit_no, '@', zip5) FROM voters");
+db_query("INSERT INTO voter_doors (voter_id, door, rep_exists) SELECT voter_id, CONCAT(street_name, '@', street_number, '@', suffix_a, '@', suffix_b, '@', apt_unit_no, '@', zip5), IF(party_code = 'REP', 1, 0) FROM voters");
 
 // Add indexes.
 foreach ($schema as $table => $info) {

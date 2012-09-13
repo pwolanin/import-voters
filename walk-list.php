@@ -19,8 +19,8 @@ $viewname = db_escape_table($argv[1]);
 
 $html_columns = array(
   'knock' => ' ',
-  'code_obama' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
-  'code_menendez' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
+  'obama' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
+  'menendez' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
   'target' => 'target',
   'first_name' => 'first_name',
   'last_name' => 'last_name',
@@ -52,8 +52,8 @@ LEFT JOIN $viewname target ON v.voter_id = target.voter_id
 WHERE v.party_code != 'REP' AND vd.door IN (SELECT vd.door FROM $viewname v INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id)
 ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC, v.last_name ASC")->fetchAll(PDO::FETCH_ASSOC);
 
-
-$time = date('Y-m-d_h-i');
+date_default_timezone_set('America/New_York');
+$time = date('Y-m-d_H-i');
 $base_fn = "./{$viewname}_{$time}";
 $csv_fp = fopen("./{$base_fn}-update.csv", 'w');
 $html_doc = '';
@@ -77,7 +77,7 @@ table.walk-list {
 .walk-list th.DOB {
   width: 6em;
 }
-.walk-list th.code_local, .walk-list th.code_obama {
+.walk-list th.obama, .walk-list th.menendez {
   width: 9em;
 }
 .walk-list th.target, .walk-list th.unit, .walk-list th.party, .walk-list th.num, .walk-list th.knock  {
@@ -139,13 +139,11 @@ if (file_exists("{$mydir}/dompdf/dompdf_config.inc.php")) {
   $dompdf->set_paper('LETTER', 'landscape');
   $dompdf->render();
   file_put_contents("{$base_fn}.pdf", $dompdf->output(array("compress" => 0)));
-  global $_dompdf_warnings;
-  foreach ($_dompdf_warnings as $msg) {
+  foreach ($GLOBALS['_dompdf_warnings'] as $msg) {
     echo $msg . "\n";
   }
   echo $dompdf->get_canvas()->get_cpdf()->messages;
   flush();
-
 }
 else {
   file_put_contents("{$base_fn}.html", $html_doc);
@@ -157,7 +155,7 @@ exit;
 function build_table_head($html_columns, $page, $viewname, $time) {
 $attr = ($page > 1) ? ' style="page-break-before: always;"': '';
   $thead = <<<EOTHEAD
-<p$attr>page {$page} List: {$viewname}_{$time}</p>
+<p$attr>Street# {$page} List: {$viewname}_{$time}</p>
 <table class="walk-list">
 <tr>
 EOTHEAD;
