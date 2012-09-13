@@ -20,7 +20,7 @@ $viewname = db_escape_table($argv[1]);
 $html_columns = array(
   'knock' => ' ',
   'code_obama' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
-  'code_local' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
+  'code_menendez' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
   'target' => 'target',
   'first_name' => 'first_name',
   'last_name' => 'last_name',
@@ -35,7 +35,7 @@ $html_columns = array(
 $csv_columns = array(
   'voter_id' => 'voter_id',
   'code_obama' => ' ',
-  'code_local' => ' ',
+  'code_menendez' => ' ',
   'note' => ' ',
   'target' => 'target',
   'first_name' => 'first_name',
@@ -54,8 +54,9 @@ ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_
 
 
 $time = date('Y-m-d_h-i');
-$html_fp = fopen("./{$viewname}_{$time}.html", 'w');
-$csv_fp = fopen("./{$viewname}-update_{$time}.csv", 'w');
+$base_fn = "./{$viewname}_{$time}";
+$csv_fp = fopen("./{$base_fn}-update.csv", 'w');
+$html_doc = '';
 
 $head = <<<EOHEAD
 <!DOCTYPE HTML>
@@ -95,7 +96,7 @@ table.walk-list {
 <body>
 EOHEAD;
 
-fwrite($html_fp, $head);
+$html_doc .= $head;
 
 $page = 1;
 $last_street_name = NULL;
@@ -107,9 +108,9 @@ $zebra = 0;
 foreach ($result as $row) {
   if ($last_street_name != $row['street_name']) {
     if (isset($last_street_name)) {
-      fwrite($html_fp, "</table>\n");
+      $html_doc .= "</table>\n";
     }
-    fwrite($html_fp, build_table_head($html_columns, $page, $viewname, $time));
+    $html_doc .= build_table_head($html_columns, $page, $viewname, $time);
     $page++;
     $zebra = 0;
   }
@@ -120,15 +121,37 @@ foreach ($result as $row) {
   $html = '<td>' . implode('</td><td>', $html_row) . "</td></tr>\n";
   // Mark odd rows with a class.
   $html = ($zebra % 2 == 1) ? '<tr class="odd">' . $html : '<tr>' . $html;
-  fwrite($html_fp, $html);
+  $html_doc .= $html;
   $csv_row = build_row_cells($row, $csv_columns);
   fputcsv($csv_fp, $csv_row);
   $zebra++;
 }
 
-fwrite($html_fp, "</table>\n<p>" . count($doors) . " doors</p></body>\n</html>\n");
+$html_doc .= "</table>\n<p>" . count($doors) . " doors</p></body>\n</html>\n";
 fclose($csv_fp);
-fclose($html_fp);
+
+$mydir = dirname(__FILE__);
+
+if (file_exists("{$mydir}/dompdf/dompdf_config.inc.php")) {
+  require_once("{$mydir}/dompdf/dompdf_config.inc.php");
+  $dompdf = new DOMPDF();
+  $dompdf->load_html($html_doc);
+  $dompdf->set_paper('LETTER', 'landscape');
+  $dompdf->render();
+  file_put_contents("{$base_fn}.pdf", $dompdf->output(array("compress" => 0)));
+  global $_dompdf_warnings;
+  foreach ($_dompdf_warnings as $msg) {
+    echo $msg . "\n";
+  }
+  echo $dompdf->get_canvas()->get_cpdf()->messages;
+  flush();
+
+}
+else {
+  file_put_contents("{$base_fn}.html", $html_doc);
+  echo "dompdf not found - wrote out html.\n";
+}
+
 exit;
 
 function build_table_head($html_columns, $page, $viewname, $time) {
@@ -141,7 +164,7 @@ EOTHEAD;
   foreach ($html_columns as $key => $ref) {
     $thead .= "<th class=\"$key\">$key</th>";
   }
-  $thead .= "</th></tr>\n";
+  $thead .= "</tr>\n";
   return $thead;
 }
 
