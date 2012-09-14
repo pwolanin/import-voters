@@ -135,6 +135,7 @@ foreach ($result as $row) {
 fclose($csv_fp);
 
 $curr_street = 1;
+$total = count($html_rows);
 
 while ($html_rows) {
   $sum = 0;
@@ -153,7 +154,7 @@ while ($html_rows) {
     if (!$pagebreak && ($curr_street > 1)) {
       $html_doc .= '<div class="spacer"></div>';
     }
-    $html_doc .= build_table_head($html_columns, $curr_street, $pagebreak, $viewname, $time);
+    $html_doc .= build_table_head($html_columns, $curr_street, $total, $pagebreak, $viewname, $time);
     $html_doc .= implode('', $rows) . "</table>\n";
     $pagebreak = FALSE;
     $curr_street++;
@@ -189,10 +190,10 @@ else {
 
 exit;
 
-function build_table_head($html_columns, $curr_street, $pagebreak, $viewname, $time) {
+function build_table_head($html_columns, $curr_street, $total, $pagebreak, $viewname, $time) {
 $attr = ($pagebreak) ? ' style="page-break-before: always;"': '';
   $thead = <<<EOTHEAD
-<p$attr>Street# {$curr_street} List: {$viewname}_{$time}</p>
+<p$attr>Street# {$curr_street} of {$total} | List: {$viewname}_{$time}</p>
 <table class="walk-list">
 <tr>
 EOTHEAD;
