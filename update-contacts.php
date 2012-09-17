@@ -13,21 +13,10 @@
 
 require_once dirname(__FILE__) . '/db-helper.php';
 
-// Optionally include the DB url from a file.
-if (file_exists('./settings.php')) {
-  include './settings.php';
-}
-
-if (count($argv) < 2 && isset($db_url)) {
+if (count($argv) < 2 ) {
   exit("usage: {$argv[0]} filename");
 }
-elseif (count($argv) < 3 && !isset($db_url)) {
-  exit("usage: {$argv[0]} filename mysqli_connection_url\n\nA valid connection URL looks like 'mysqli://myname:pass@127.0.0.1:3306/voterdbname'\n");
-}
 
-if (isset($argv[2])) {
-  $db_url = $argv[2];
-}
 
 $filename = $argv[1];
 if (!file_exists($filename) || !is_readable($filename)) {
@@ -46,11 +35,9 @@ $header = fgetcsv($handle, 1000);
 if (is_array($header)) {
   $idx = array_flip($header);
 }
-if (!$header || !isset($idx['voter_id']) || !isset($idx['code']) || !isset($idx['note'])) {
+if (!$header || !isset($idx['voter_id']) || !isset($idx['code_obama']) || !isset($idx['code_menendez']) || !isset($idx['note'])) {
   exit("Invalid header row in file {$filename}\n");
 }
-
-$active_db = db_connect($db_url);
 
 while (($data = fgetcsv($handle, 1000)) !== FALSE) {
   if (!isset($data[$idx['voter_id']])) {
@@ -58,14 +45,16 @@ while (($data = fgetcsv($handle, 1000)) !== FALSE) {
     continue;
   }
   $id = $data[$idx['voter_id']];
-  $code = strtoupper($data[$idx['code']]);
+  $obama = strtoupper($data[$idx['code_obama']]);
+  $menendez = strtoupper($data[$idx['code_menendez']]);
   $note = $data[$idx['note']];
   // Only write real contacts to the DB.
-  if (strlen($code)) {
-    db_query($active_db, "INSERT INTO voter_contact (voter_id, code, note, litdrop) VALUES ('%s', '%s', '%s', 1) ON DUPLICATE KEY UPDATE code = VALUES(code), note = CONCAT_WS(',', note, VALUES(note)), litdrop = 1", array($id, $code, $note));
-  }
-  else {
-    db_query($active_db, "INSERT INTO voter_contact (voter_id, code, note, litdrop) VALUES ('%s', NULL, '%s', 1) ON DUPLICATE KEY UPDATE note = CONCAT_WS(',', note, VALUES(note)), litdrop = 1", array($id, $note));
+  if (strlen($obama)) {
+    db_merge('voter_contact')
+      ->key(array('voter_id' => $id))
+      ->fields(array('code_obama' => $obama, 'code_menendez' => $menendez, 'note' => $note))
+      ->execute();
+    //db_query($active_db, "INSERT INTO voter_contact (voter_id, code, note) VALUES ('%s', '%s', '%s', 1) ON DUPLICATE KEY UPDATE code = VALUES(code), note = CONCAT_WS(',', note, VALUES(note)), litdrop = 1", array($id, $code, $note));
   }
 }
 

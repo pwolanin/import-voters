@@ -52,7 +52,7 @@ LEFT JOIN $viewname target ON v.voter_id = target.voter_id
 WHERE v.party_code != 'REP'
 AND v.status NOT LIKE 'Inactive%'
 AND vd.door IN (SELECT vd.door FROM $viewname vv INNER JOIN voter_doors vd ON vv.voter_id = vd.voter_id)
-ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC, v.last_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC, target DESC, v.last_name ASC")->fetchAll(PDO::FETCH_ASSOC);
 
 date_default_timezone_set('America/New_York');
 $time = date('Y-m-d_H-i');
