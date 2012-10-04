@@ -38,6 +38,12 @@ $schema['van_info'] = array(
       'not null' => TRUE,
       'default' => '',
     ),
+    'email' => array(
+      'type' => 'varchar',
+      'length' => 80,
+      'not null' => TRUE,
+      'default' => '',
+    ),
     'van_id' => array(
       'type' => 'varchar',
       'length' => 25,
@@ -92,11 +98,11 @@ while (($line = fgets($handle)) !== FALSE) {
   }
 
   $info = array();
-  foreach(array('VoterID', 'HomePhone', 'VANID') as $key) {
-    $info[$key] = $fields[$idx[$key]];
+  foreach(array('voter_id' => 'VoterID', 'home_phone' => 'HomePhone', 'email' => 'Email', 'van_id' => 'VANID') as $sql => $key) {
+    $info[$sql] = $fields[$idx[$key]];
   }
   // For some reason, van has a prefix 'I0210' on the NJ voter ID.
-  $info['VoterID'] = substr($info['VoterID'], 5);
+  $info['voter_id'] = substr($info['voter_id'], 5);
 
   try {
     db_insert('van_info')
