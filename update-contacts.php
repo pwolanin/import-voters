@@ -47,7 +47,7 @@ while (($data = fgetcsv($handle, 1000)) !== FALSE) {
   $id = $data[$idx['voter_id']];
   $obama = strtoupper($data[$idx['code_obama']]);
   $menendez = strtoupper($data[$idx['code_menendez']]);
-  $note = $data[$idx['note']];
+  $note = preg_replace('/[^A-Za-z0-9_. ]+/', ' ', $data[$idx['note']]);
   // Only write real contacts to the DB.
   if (strlen($obama)) {
     db_merge('voter_contact')

@@ -12,13 +12,25 @@
 require_once dirname(__FILE__) . '/db-helper.php';
 
 if (count($argv) < 2) {
-  exit("usage: {$argv[0]} viewname");
+  exit("usage: {$argv[0]} viewname [num streets per page max:3]");
 }
 
 $viewname = db_escape_table($argv[1]);
 
+$streets_per_page_max = 0;
+
+if (!empty($argv[2])) {
+  $streets_per_page_max = (int) $argv[2];
+}
+
+if ($streets_per_page_max <= 0) {
+  $streets_per_page_max = 3;
+}
+
+echo "Max of {$streets_per_page_max} streets per page\n";
+
 $html_columns = array(
-  'knock' => ' ',
+  'phone' => 'phone',
   'obama' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
   'menendez' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
   'target' => 'target',
@@ -46,11 +58,11 @@ $csv_columns = array(
 );
 
 $result = db_query("
-SELECT v.*, IF (target.voter_id, 'Y', '') AS target FROM voters v 
+SELECT v.*, IF (target.voter_id, 'Y', '') AS target, IF(vi.home_phone,vi.home_phone,' ') AS phone FROM voters v 
 INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
 LEFT JOIN $viewname target ON v.voter_id = target.voter_id
-WHERE v.party_code != 'REP'
-AND v.status NOT LIKE 'Inactive%'
+LEFT JOIN {van_info} vi ON v.voter_id = vi.voter_id
+WHERE v.status NOT LIKE 'Inactive%'
 AND vd.door IN (SELECT vd.door FROM $viewname vv INNER JOIN voter_doors vd ON vv.voter_id = vd.voter_id)
 ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC, target DESC, v.last_name ASC")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -146,7 +158,7 @@ while ($html_rows) {
     $sum += count($next);
     $current_set[] = $next;
     $num_streets++;
-  } while ($html_rows && ($sum < 20) && ($sum + count(reset($html_rows)) < 25) && $num_streets < 3);
+  } while ($html_rows && ($sum < 20) && ($sum + count(reset($html_rows)) < 25) && $num_streets < $streets_per_page_max);
 
   // Add a page break except for with the 1st street.
   $pagebreak = TRUE && ($curr_street > 1);
