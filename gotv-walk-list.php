@@ -42,7 +42,7 @@ $html_columns = array(
 
 
 
-$result = db_query($active_db, "
+$result = db_query("
 SELECT GROUP_CONCAT(vc.code) AS code, GROUP_CONCAT(CONCAT(v.first_name, ' ', v.last_name)) AS names, vi.home_phone, 
 v.street_name, v.street_number, v.suffix_a, v.suffix_b, v.apt_unit_no, v.municipality, v.district, vc.note
 FROM voters v 
@@ -50,7 +50,7 @@ LEFT JOIN van_info vi ON v.voter_id = vi.voter_id
 INNER JOIN voter_contact vc ON v.voter_id = vc.voter_id
 INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
 WHERE vd.door IN (SELECT vd.door FROM $viewname v INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id)
-AND vc.code NOT IN ('W', 'V')
+AND vc.code NOT IN ('W', 'N', 'LN')
 GROUP BY vd.door
 ORDER BY v.street_name ASC, v.street_number ASC, v.suffix_a ASC, v.suffix_b ASC, v.apt_unit_no ASC, vi.home_phone DESC, v.last_name ASC, v.first_name ASC");
 

@@ -38,9 +38,15 @@ $schema['van_info'] = array(
       'not null' => TRUE,
       'default' => '',
     ),
-    'email' => array(
+    'ballot_mailed' => array(
       'type' => 'varchar',
-      'length' => 80,
+      'length' => 10,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'ballot_received' => array(
+      'type' => 'varchar',
+      'length' => 10,
       'not null' => TRUE,
       'default' => '',
     ),
@@ -98,11 +104,13 @@ while (($line = fgets($handle)) !== FALSE) {
   }
 
   $info = array();
-  foreach(array('voter_id' => 'VoterID', 'home_phone' => 'HomePhone', 'email' => 'Email', 'van_id' => 'VANID') as $sql => $key) {
+  foreach(array('voter_id' => 'VoterID', 'home_phone' => 'HomePhone', 'ballot_mailed' => 'BallotMailed', 'ballot_received' => 'BallotReceived', 'van_id' => 'VANID') as $sql => $key) {
     $info[$sql] = $fields[$idx[$key]];
   }
   // For some reason, van has a prefix 'I0210' on the NJ voter ID.
   $info['voter_id'] = substr($info['voter_id'], 5);
+  $info['ballot_mailed'] = voter_reformat_date($info['ballot_mailed']);
+  $info['ballot_received'] = voter_reformat_date($info['ballot_received']);
 
   try {
     db_insert('van_info')
@@ -124,4 +132,12 @@ fclose($handle);
 
 exit;
 
+
+function voter_reformat_date($str) {
+  $parts = explode('/', $str);
+  if (count($parts) == 3) {
+    return "{$parts[2]}-{$parts[0]}-{$parts[1]}";
+  }
+  return '';
+}
 
