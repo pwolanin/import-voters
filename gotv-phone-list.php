@@ -24,10 +24,10 @@ if (!empty($argv[2])) {
 }
 
 if ($streets_per_page_max <= 0) {
-  $streets_per_page_max = 3;
+  $streets_per_page_max = 9;
 }
 
-echo "Max of {$streets_per_page_max} streets per page\n";
+//echo "Max of {$streets_per_page_max} streets per page\n";
 
 $html_columns = array(
   'phone' => 'phone',
@@ -42,7 +42,7 @@ $html_columns = array(
 );
 
 $result = db_query("
-SELECT v.*, IF(vi.home_phone,CONCAT(SUBSTRING(vi.home_phone,1,3), '-',SUBSTRING(vi.home_phone,4,3), '-', SUBSTRING(vi.home_phone,7)),' ') AS phone FROM voters v 
+SELECT v.*, If(vi.home_phone AND vi.home_phone > '',CONCAT(SUBSTRING(vi.home_phone,1,3), '-',SUBSTRING(vi.home_phone,4,3), '-', SUBSTRING(vi.home_phone,7)), ' ') AS phone FROM voters v 
 INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
 LEFT JOIN van_info vi ON v.voter_id = vi.voter_id
 LEFT JOIN voter_contact vc ON vc.voter_id = v.voter_id
@@ -50,13 +50,13 @@ WHERE (vc.code_obama IS NULL OR vc.code_obama NOT IN ('N', 'LN', 'W', ''))
 AND v.status NOT LIKE 'Inactive%'
 AND (vi.ballot_received IS NULL OR vi.ballot_received = '')
 AND (vd.rep_exists = 0)
+AND vd.door IN (SELECT vdd.door FROM voter_doors vdd INNER JOIN van_info vii ON vdd.voter_id=vii.voter_id WHERE (vii.home_phone IS NOT NULL AND vii.home_phone > ''))
 AND v.district = :district 
-GROUP BY vd.door
-ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC", array(':district' => $district))->fetchAll(PDO::FETCH_ASSOC);
+ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no, v.last_name, v.first_name ASC", array(':district' => $district))->fetchAll(PDO::FETCH_ASSOC);
 
 date_default_timezone_set('America/New_York');
 $time = date('Y-m-d_H-i');
-$base_name = "gotv_hang_dist_{$district}_{$time}";
+$base_name = "gotv_phone_dist_{$district}_{$time}";
 $base_fn = "./$base_name";
 $html_doc = '';
 
@@ -64,19 +64,21 @@ $html_doc = <<<EOHEAD
 <!DOCTYPE HTML>
 <html>
 <head>
-<title>{$basename}</title>
+<title>{$base_name}</title>
 <style>
 body {
   font: Helvetica;
   font-size: 0.7em;
 }
 div.spacer {
-  height: 1.4em;
+  height: 0.5em;
 }
 table.walk-list {
   width: 65em;
 }
-
+.walk-list th.phone {
+  width: 7em;
+}
 .walk-list th.DOB {
   width: 6em;
 }
@@ -118,13 +120,13 @@ foreach ($result as $row) {
   $address = $row['street_number'] . '|' . $row['street_name'] . '|' . $row['apt_unit_no'] . '|' . $row['suffix_a'] . '|' . $row['suffix_b'];
   $last_street_name = $row['street_name'];
   $html = '<td>' . implode('</td><td>', $html_row) . "</td></tr>\n";
-  // Mark odd rows with a class.
-  $html = ($zebra % 2 == 1) ? '<tr class="odd">' . $html : '<tr>' . $html;
-  $html_rows[$curr_street][] = $html;
   if (!isset($doors[$address])) {
     $doors[$address] = TRUE;
     $zebra++;
   }
+  // Mark odd rows with a class.
+  $html = ($zebra % 2 == 1) ? '<tr class="odd">' . $html : '<tr>' . $html;
+  $html_rows[$curr_street][] = $html;
 }
 
 
@@ -140,7 +142,7 @@ while ($html_rows) {
     $sum += count($next);
     $current_set[] = $next;
     $num_streets++;
-  } while ($html_rows && ($sum < 20) && ($sum + count(reset($html_rows)) < 25) && $num_streets < $streets_per_page_max);
+  } while ($html_rows && ($sum < 30) && ($sum + count(reset($html_rows)) < 35) && $num_streets < $streets_per_page_max);
 
   // Add a page break except for with the 1st street.
   $pagebreak = TRUE && ($curr_street > 1);
@@ -148,7 +150,7 @@ while ($html_rows) {
     if (!$pagebreak && ($curr_street > 1)) {
       $html_doc .= '<div class="spacer"></div>';
     }
-    $html_doc .= build_table_head($html_columns, $curr_street, $total, $pagebreak, $basename);
+    $html_doc .= build_table_head($html_columns, $curr_street, $total, $pagebreak, $base_name);
     $html_doc .= implode('', $rows) . "</table>\n<p>" . count($rows) . " doors</p>\n";
     $pagebreak = FALSE;
     $curr_street++;
@@ -184,10 +186,10 @@ else {
 
 exit;
 
-function build_table_head($html_columns, $curr_street, $total, $pagebreak, $basename) {
-$attr = ($pagebreak) ? ' style="page-break-before: always;"': '';
+function build_table_head($html_columns, $curr_street, $total, $pagebreak, $base_name) {
+$attr = ''; //($pagebreak) ? ' style="page-break-before: always;"': '';
   $thead = <<<EOTHEAD
-<p$attr>Street# {$curr_street} of {$total} | List: {$basename}</p>
+<p$attr>Street# {$curr_street} of {$total} | List: {$base_name}</p>
 <table class="walk-list">
 <tr>
 EOTHEAD;
