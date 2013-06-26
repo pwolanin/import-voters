@@ -12,14 +12,10 @@
 require_once dirname(__FILE__) . '/db-helper.php';
 ini_set('auto_detect_line_endings', 1);
 
-// The CSV files, at least, have an extra trailing delimiter. So the
-// expected number of fileds is on more than the real number we use.
-define('EXPECTED_NUM_FIELDS', 26);
-
 $scriptname = array_shift($argv);
 
 if (count($argv) < 1) {
-  exit("usage: {$scriptname} voterfile [municipal filter]\n\n");
+  exit("usage: {$scriptname} voterfile [municipal filter] [county name]\n\nUse '-' for municipal filter to skip it when supplying a county name");
 }
 
 $filename = array_shift($argv);
@@ -27,7 +23,28 @@ if (!file_exists($filename) || !is_readable($filename)) {
   exit("File {$filename} does not exist or cannot be read\n");
 }
 
+$base = basename($filename);
+
+if ($base == 'AlphaVoterListState.txt') {
+// The CSV files, at least, have an extra trailing delimiter. So the
+// expected number of fields is on more than the real number we use.
+  define('EXPECTED_NUM_FIELDS', 26);
+  define('LIST_SOURCE', 'STATE');
+}
+elseif ($base == 'Alphavoterlist.txt') {
+  define('EXPECTED_NUM_FIELDS', 19);
+  define('LIST_SOURCE', 'COUNTY');
+}
+else {
+  exit("File {$filename} does not match expected naming\n");
+}
+
 $municipal_filter = array_shift($argv);
+if ($municipal_filter == '-') {
+  $municipal_filter = NULL;
+}
+
+$county_name = (string) array_shift($argv);
 
 $schema['voters'] = array(
   'fields' => array(
@@ -296,6 +313,9 @@ while (($voter = fgetcsv($handle, 1000, $delimiter)) !== FALSE) {
   if (count($voter) != EXPECTED_NUM_FIELDS) {
     echo "Invalid line: " . implode($delimiter,$voter) . "\n";
     continue;
+  }
+  if (LIST_TYPE == 'COUNTY') {
+    $voter = array_merge($county_name, current($voter), $voter, array('', '', '', '', '', ''));
   }
   if (++$rows % 5000 == 0) {
     $elapsed = time() - $start;

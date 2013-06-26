@@ -2,7 +2,7 @@
 <?php
 /**
  * A simple CLI script to transform tab-delimited input
- * on stdin to csv output on stdout
+ * on stdin to pipe delimited output on stdout
  */
 
 // Don't wait for input if there is none already.
