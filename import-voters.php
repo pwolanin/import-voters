@@ -314,7 +314,7 @@ while (($voter = fgetcsv($handle, 1000, $delimiter)) !== FALSE) {
     echo "Invalid line: " . implode($delimiter,$voter) . "\n";
     continue;
   }
-  if (LIST_TYPE == 'COUNTY') {
+  if (LIST_SOURCE == 'COUNTY') {
     $voter = array_merge($county_name, current($voter), $voter, array('', '', '', '', '', ''));
   }
   if (++$rows % 5000 == 0) {
