@@ -69,7 +69,8 @@ foreach (array(0,1) as $odd) {
   );
   
   $result = db_query("
-  SELECT v.*, IF (tv.voter_id, 'Y', '') AS target FROM voters v 
+  SELECT v.voter_id, v.first_name, v.last_name, v.street_number, v.street_name, v.suffix_a, v.suffix_b, v.apt_unit_no, v.party_code,
+  SUBSTRING(v.date_of_birth, 1, 4) as date_of_birth, IF (tv.voter_id, 'Y', '') AS target FROM voters v 
   INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
   LEFT JOIN target_voters tv ON v.voter_id = tv.voter_id
   WHERE v.status NOT LIKE 'Inactive%'
@@ -98,30 +99,43 @@ div.spacer {
   height: 1.4em;
 }
 table.walk-list {
-  width: 85em;
+  width: 7.5in;
+  border-collapse: collapse;
 }
 .walk-list th.note {
-  padding-right: 10em;
+  padding-right: 5em;
 }
 .walk-list th.DOB {
-  width: 6em;
+  width: 3em;
 }
 .walk-list th.buono, {
   width: 9em;
 }
 .walk-list th.street {
-  width: 14em;
+  width: 11em;
 }
-.walk-list th.target, .walk-list th.unit, .walk-list th.party, .walk-list th.num, .walk-list th.knock  {
+.walk-list th.first_name, .walk-list th.last_name {
+  width: 11em;
+}
+.walk-list th.num {
+  width: 2.5em;
+}
+.walk-list th.target, .walk-list th.unit, .walk-list th.party, .walk-list th.knock {
   width: 2em;
 }
 .walk-list tr td {
   background-color: #fff;
   padding-left: 0.5em;
+  padding-right: 0.5em;
+  padding-top: 0.2em;
+  padding-bottom: 0.2em;
   border-left: solid 1px;
 }
 .walk-list tr.odd td {
   background-color: #eee;
+}
+body {
+  padding-top: 5em;
 }
 </style>
 </head>
@@ -172,7 +186,7 @@ EOHEAD;
       $sum += count($next);
       $current_set[] = $next;
       $num_streets++;
-    } while ($html_rows && ($sum < 20) && ($sum + count(reset($html_rows)) < 25) && $num_streets < $streets_per_page_max);
+    } while ($html_rows && ($sum < 39) && ($sum + count(reset($html_rows)) < 44) && $num_streets < $streets_per_page_max);
   
     // Add a page break except for with the 1st street.
     $pagebreak = TRUE && ($curr_street > 1);

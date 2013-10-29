@@ -24,15 +24,14 @@ if (!empty($argv[2])) {
 }
 
 if ($streets_per_page_max <= 0) {
-  $streets_per_page_max = 3;
+  $streets_per_page_max = 1;
 }
 
 echo "Max of {$streets_per_page_max} streets per page\n";
 
 $html_columns = array(
   'phone' => 'phone',
-  'obama' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
-  'menendez' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
+  'buono' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
   'target' => 'target',
   'first_name' => 'first_name',
   'last_name' => 'last_name',
@@ -46,8 +45,7 @@ $html_columns = array(
 
 $csv_columns = array(
   'voter_id' => 'voter_id',
-  'code_obama' => ' ',
-  'code_menendez' => ' ',
+  'code_buono' => ' ',
   'note' => ' ',
   'target' => 'target',
   'first_name' => 'first_name',
