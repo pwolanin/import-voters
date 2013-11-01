@@ -35,7 +35,7 @@ $header = fgetcsv($handle, 1000);
 if (is_array($header)) {
   $idx = array_flip($header);
 }
-if (!$header || !isset($idx['voter_id']) || !isset($idx['code_obama']) || !isset($idx['code_menendez']) || !isset($idx['note'])) {
+if (!$header || !isset($idx['voter_id']) || !isset($idx['code_buono']) || !isset($idx['note'])) {
   exit("Invalid header row in file {$filename}\n");
 }
 
@@ -45,16 +45,14 @@ while (($data = fgetcsv($handle, 1000)) !== FALSE) {
     continue;
   }
   $id = $data[$idx['voter_id']];
-  $obama = strtoupper($data[$idx['code_obama']]);
-  $menendez = strtoupper($data[$idx['code_menendez']]);
+  $buono = strtoupper($data[$idx['code_buono']]);
   $note = preg_replace('/[^A-Za-z0-9_. ]+/', ' ', $data[$idx['note']]);
   // Only write real contacts to the DB.
-  if (strlen($obama)) {
+  if (strlen($buono)) {
     db_merge('voter_contact')
       ->key(array('voter_id' => $id))
-      ->fields(array('code_obama' => $obama, 'code_menendez' => $menendez, 'note' => $note))
+      ->fields(array('code_buono' => $buono, 'note' => $note))
       ->execute();
-    //db_query($active_db, "INSERT INTO voter_contact (voter_id, code, note) VALUES ('%s', '%s', '%s', 1) ON DUPLICATE KEY UPDATE code = VALUES(code), note = CONCAT_WS(',', note, VALUES(note)), litdrop = 1", array($id, $code, $note));
   }
 }
 

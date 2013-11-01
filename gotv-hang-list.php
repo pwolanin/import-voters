@@ -40,11 +40,11 @@ $html_columns = array(
 $result = db_query("
 SELECT v.street_number, v.street_name, v.district, v.suffix_a, v.suffix_b, v.apt_unit_no, GROUP_CONCAT(DISTINCT(v.last_name) SEPARATOR ', ') AS last_names FROM voters v 
 INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
-LEFT JOIN van_info vi ON v.voter_id = vi.voter_id
+LEFT JOIN vbm_info vi ON v.voter_id = vi.voter_id
 LEFT JOIN voter_contact vc ON vc.voter_id = v.voter_id
-WHERE (vc.code_obama IS NULL OR vc.code_obama NOT IN ('N', 'LN', 'W', ''))
+WHERE (vc.code_buono IS NULL OR vc.code_buono NOT IN ('N', 'LN', 'W', 'U'))
 AND v.status NOT LIKE 'Inactive%'
-AND (vi.ballot_received IS NULL OR vi.ballot_received = '')
+AND (vi.application_received IS NULL OR vi.application_received = '')
 AND (vd.rep_exists = 0)
 AND v.district = :district 
 GROUP BY vd.door
