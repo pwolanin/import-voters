@@ -15,13 +15,14 @@ ini_set('auto_detect_line_endings', 1);
 $scriptname = array_shift($argv);
 
 if (count($argv) < 1) {
-  exit("usage: {$scriptname} vanfile.csv");
+  exit("usage: {$scriptname} datafile.csv [UPDATE]");
 }
 
 $filename = array_shift($argv);
 if (!file_exists($filename) || !is_readable($filename)) {
   exit("File {$filename} does not exist or cannot be read\n");
 }
+$update = (bool) array_shift($argv);
 
 // Do we want to filter based on an existin voters table?
 $voter_filter = array_shift($argv);
@@ -70,12 +71,14 @@ if (!$handle) {
   exit;
 }
 
-if (db_table_exists('vbm_info')) {
-  db_drop_table('vbm_info');
+if (!$update) {
+  if (db_table_exists('vbm_info')) {
+    db_drop_table('vbm_info');
+  }
+  db_create_table('vbm_info', $schema['vbm_info']);
 }
-db_create_table('vbm_info', $schema['vbm_info']);
 
-$van_fields = array_keys($schema['vbm_info']['fields']);
+$vbm_fields = array_keys($schema['vbm_info']['fields']);
 
 
 $delimiter = NULL;
@@ -99,8 +102,9 @@ if (($line = fgets($handle)) !== FALSE) {
 echo "Header fields:\n";
 print_r($header_fields);
 
+$i=0;
 while (($line = fgets($handle)) !== FALSE) {
-  $fields = explode($delimiter, $line);
+  $fields = str_getcsv($line, $delimiter);
   if (count($fields) < 3) {
     echo "Invalid line: {$line}\n";
     continue;
@@ -111,15 +115,24 @@ while (($line = fgets($handle)) !== FALSE) {
     if (isset($idx[$key])) {
       $info[$sql] = $fields[$idx[$key]];
     }
+    else {
+      $info[$sql] = '';
+    }
   }
   $info['application_received'] = voter_reformat_date($info['application_received']);
   $info['ballot_mailed'] = voter_reformat_date($info['ballot_mailed']);
   $info['ballot_received'] = voter_reformat_date($info['ballot_received']);
 
   try {
-    db_insert('vbm_info')
-      ->fields($van_fields)
-      ->values(array_values($info))
+    if ($update) {
+      $query = db_merge('vbm_info')
+      ->key(array('voter_id' => $info['voter_id']));
+    }
+    else {
+      $query = db_insert('vbm_info');
+    }
+
+    $query->fields($info)
       ->execute();
   }
   catch (PDOException $e) {
@@ -138,9 +151,9 @@ exit;
 
 
 function voter_reformat_date($str) {
-  $parts = explode('/', $str);
-  if (count($parts) == 3) {
-    return "{$parts[2]}-{$parts[0]}-{$parts[1]}";
+  $parts = array();
+  if (preg_match('@([0-9]{1,2})/([0-9]{1,2})/([0-9]{4})@', $str, $parts)) {
+    return sprintf("%d-%02d-%02d", $parts[3], $parts[1], $parts[2]);
   }
   return '';
 }
