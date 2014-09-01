@@ -44,6 +44,7 @@ while (($data = fgetcsv($handle, 1000)) !== FALSE) {
     echo "Invalid row: " . print_r($data, TRUE);
     continue;
   }
+  $data = array_map('trim', $data);
   $id = $data[$idx['voter_id']];
   $buono = strtoupper($data[$idx['code_buono']]);
   $note = preg_replace('/[^A-Za-z0-9_. ]+/', ' ', $data[$idx['note']]);

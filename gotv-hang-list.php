@@ -12,15 +12,25 @@
 require_once dirname(__FILE__) . '/db-helper.php';
 
 if (count($argv) < 2) {
-  exit("usage: {$argv[0]} district [num streets per page max:3]");
+  exit("usage: {$argv[0]} district [both] [num streets per page max:3]");
 }
 
-$district = $argv[1];
+
+$district = (int) $argv[1];
+
+if ($district < 1 || $district > 22) {
+  exit("Invalid district $district\n");
+}
+
+// Format for query.
+$district = sprintf('%02d', $district);
+
+$both = !empty($argv[2]);
 
 $streets_per_page_max = 0;
 
-if (!empty($argv[2])) {
-  $streets_per_page_max = (int) $argv[2];
+if (!empty($argv[3])) {
+  $streets_per_page_max = (int) $argv[3];
 }
 
 if ($streets_per_page_max <= 0) {
@@ -37,26 +47,34 @@ $html_columns = array(
   'last_names' => 'last_names',
 );
 
-$result = db_query("
-SELECT v.street_number, v.street_name, v.district, v.suffix_a, v.suffix_b, v.apt_unit_no, GROUP_CONCAT(DISTINCT(v.last_name) SEPARATOR ', ') AS last_names FROM voters v 
-INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
-LEFT JOIN vbm_info vi ON v.voter_id = vi.voter_id
-LEFT JOIN voter_contact vc ON vc.voter_id = v.voter_id
-WHERE (vc.code_buono IS NULL OR vc.code_buono NOT IN ('N', 'LN', 'W', 'U'))
-AND v.status NOT LIKE 'Inactive%'
-AND (vi.application_received IS NULL OR vi.application_received = '')
-AND (vd.rep_exists = 0)
-AND v.district = :district 
-GROUP BY vd.door
-ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC", array(':district' => $district))->fetchAll(PDO::FETCH_ASSOC);
+$iterate = $both ? array('both') : array('odd','even');
 
-date_default_timezone_set('America/New_York');
-$time = date('Y-m-d_H-i');
-$base_name = "gotv_hang_dist_{$district}_{$time}";
-$base_fn = "./$base_name";
-$html_doc = '';
+foreach ($iterate as $odd) {
+  $args = array(':district' => $district);
+  if (!$both) {
+    $args[':odd'] = $odd == 'odd' ? 1 : 0;
+  }
+  $result = db_query("
+  SELECT v.street_number, v.street_name, v.district, v.suffix_a, v.suffix_b, v.apt_unit_no, GROUP_CONCAT(DISTINCT(v.last_name) SEPARATOR ', ') AS last_names FROM voters v
+  INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
+  LEFT JOIN vbm_info vi ON v.voter_id = vi.voter_id
+  LEFT JOIN voter_contact vc ON vc.voter_id = v.voter_id
+  WHERE (vc.code_buono IS NULL OR vc.code_buono NOT IN ('N', 'LN', 'W', 'U'))
+  AND v.status NOT LIKE 'Inactive%'
+  AND (vi.application_received IS NULL OR vi.application_received = '')
+  AND (vd.rep_exists = 0)
+  AND v.district = :district " .
+  ($both ? '' : "  AND v.street_num_int % 2 = :odd ") . "
+  GROUP BY vd.door
+  ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC", $args)->fetchAll(PDO::FETCH_ASSOC);
 
-$html_doc = <<<EOHEAD
+  date_default_timezone_set('America/New_York');
+  $time = date('Y-m-d_H-i');
+  $base_name = "gotv_hang_dist_{$district}_{$odd}_{$time}";
+  $base_fn = "./$base_name";
+  $html_doc = '';
+
+  $html_doc = <<<EOHEAD
 <!DOCTYPE HTML>
 <html>
 <head>
@@ -94,82 +112,83 @@ table.walk-list {
 <body>
 EOHEAD;
 
-$curr_street = 0;
-$html_rows = array();
+  $curr_street = 0;
+  $html_rows = array();
 
-$last_street_name = NULL;
+  $last_street_name = NULL;
 
-$doors = array();
-$zebra = 0;
-foreach ($result as $row) {
-  if ($last_street_name != $row['street_name']) {
-    $curr_street++;
-    $zebra = 0;
-  }
-  $html_row = build_row_cells($row, $html_columns);
-  $address = $row['street_number'] . '|' . $row['street_name'] . '|' . $row['apt_unit_no'] . '|' . $row['suffix_a'] . '|' . $row['suffix_b'];
-  $doors[$address] = TRUE;
-  $last_street_name = $row['street_name'];
-  $html = '<td>' . implode('</td><td>', $html_row) . "</td></tr>\n";
-  // Mark odd rows with a class.
-  $html = ($zebra % 2 == 1) ? '<tr class="odd">' . $html : '<tr>' . $html;
-  $html_rows[$curr_street][] = $html;
-  $zebra++;
-}
-
-
-$curr_street = 1;
-$total = count($html_rows);
-
-while ($html_rows) {
-  $sum = 0;
-  $num_streets = 0;
-  $current_set = array();
-  do {
-    $next = array_shift($html_rows);
-    $sum += count($next);
-    $current_set[] = $next;
-    $num_streets++;
-  } while ($html_rows && ($sum < 30) && ($sum + count(reset($html_rows)) < 35) && $num_streets < $streets_per_page_max);
-
-  // Add a page break except for with the 1st street.
-  $pagebreak = TRUE && ($curr_street > 1);
-  foreach ($current_set as $rows) {
-    if (!$pagebreak && ($curr_street > 1)) {
-      $html_doc .= '<div class="spacer"></div>';
+  $doors = array();
+  $zebra = 0;
+  foreach ($result as $row) {
+    if ($last_street_name != $row['street_name']) {
+      $curr_street++;
+      $zebra = 0;
     }
-    $html_doc .= build_table_head($html_columns, $curr_street, $total, $pagebreak, $base_name);
-    $html_doc .= implode('', $rows) . "</table>\n<p>" . count($rows) . " doors</p>\n";
-    $pagebreak = FALSE;
-    $curr_street++;
+    $html_row = build_row_cells($row, $html_columns);
+    $address = $row['street_number'] . '|' . $row['street_name'] . '|' . $row['apt_unit_no'] . '|' . $row['suffix_a'] . '|' . $row['suffix_b'];
+    $doors[$address] = TRUE;
+    $last_street_name = $row['street_name'];
+    $html = '<td>' . implode('</td><td>', $html_row) . "</td></tr>\n";
+    // Mark odd rows with a class.
+    $html = ($zebra % 2 == 1) ? '<tr class="odd">' . $html : '<tr>' . $html;
+    $html_rows[$curr_street][] = $html;
+    $zebra++;
   }
-}
 
-// Build doc up from the end.
-$html_doc .= "<p>" . count($doors) . " TOTAL doors</p></body>\n</html>\n";
 
-$mydir = dirname(__FILE__);
-$verbose = FALSE;
+  $curr_street = 1;
+  $total = count($html_rows);
 
-if (file_exists("{$mydir}/dompdf/dompdf_config.inc.php")) {
-  require_once("{$mydir}/dompdf/dompdf_config.inc.php");
-  $dompdf = new DOMPDF();
-  $dompdf->load_html($html_doc);
-  $dompdf->set_paper('LETTER', 'portrait');
-  $dompdf->render();
-  file_put_contents("{$base_fn}.pdf", $dompdf->output(array("compress" => 0)));
-  if ($verbose) {
-    foreach ($GLOBALS['_dompdf_warnings'] as $msg) {
-      echo $msg . "\n";
+  while ($html_rows) {
+    $sum = 0;
+    $num_streets = 0;
+    $current_set = array();
+    do {
+      $next = array_shift($html_rows);
+      $sum += count($next);
+      $current_set[] = $next;
+      $num_streets++;
+    } while ($html_rows && ($sum < 30) && ($sum + count(reset($html_rows)) < 35) && $num_streets < $streets_per_page_max);
+
+    // Add a page break except for with the 1st street.
+    $pagebreak = TRUE && ($curr_street > 1);
+    foreach ($current_set as $rows) {
+      if (!$pagebreak && ($curr_street > 1)) {
+        $html_doc .= '<div class="spacer"></div>';
+      }
+      $html_doc .= build_table_head($html_columns, $curr_street, $total, $pagebreak, $base_name);
+      $html_doc .= implode('', $rows) . "</table>\n<p>" . count($rows) . " doors</p>\n";
+      $pagebreak = FALSE;
+      $curr_street++;
     }
-    echo $dompdf->get_canvas()->get_cpdf()->messages;
-    flush();
   }
-  echo "wrote out {$base_fn}.pdf.\n";
-}
-else {
-  file_put_contents("{$base_fn}.html", $html_doc);
-  echo "dompdf not found - wrote out html.\n";
+
+  // Build doc up from the end.
+  $html_doc .= "<p>" . count($doors) . " TOTAL doors</p></body>\n</html>\n";
+
+  $mydir = dirname(__FILE__);
+  $verbose = FALSE;
+
+  if (file_exists("{$mydir}/dompdf/dompdf_config.inc.php")) {
+    require_once("{$mydir}/dompdf/dompdf_config.inc.php");
+    $dompdf = new DOMPDF();
+    $dompdf->load_html($html_doc);
+    $dompdf->set_paper('LETTER', 'portrait');
+    $dompdf->render();
+    file_put_contents("{$base_fn}.pdf", $dompdf->output(array("compress" => 0)));
+    if ($verbose) {
+      foreach ($GLOBALS['_dompdf_warnings'] as $msg) {
+        echo $msg . "\n";
+      }
+      echo $dompdf->get_canvas()->get_cpdf()->messages;
+      flush();
+    }
+    echo "wrote out {$base_fn}.pdf.\n";
+  }
+  else {
+    file_put_contents("{$base_fn}.html", $html_doc);
+    echo "dompdf not found - wrote out html.\n";
+  }
 }
 
 exit;

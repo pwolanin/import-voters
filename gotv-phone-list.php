@@ -12,10 +12,17 @@
 require_once dirname(__FILE__) . '/db-helper.php';
 
 if (count($argv) < 2) {
-  exit("usage: {$argv[0]} viewname [num streets per page max:3]");
+  exit("usage: {$argv[0]} district [num streets per page max:3]");
 }
 
-$district = $argv[1];
+$district = (int) $argv[1];
+
+if ($district < 1 || $district > 22) {
+  exit("Invalid district $district\n");
+}
+
+// Format for query.
+$district = sprintf('%02d', $district);
 
 $streets_per_page_max = 0;
 
@@ -27,7 +34,7 @@ if ($streets_per_page_max <= 0) {
   $streets_per_page_max = 9;
 }
 
-//echo "Max of {$streets_per_page_max} streets per page\n";
+echo "Max of {$streets_per_page_max} streets per page\n";
 
 $html_columns = array(
   'phone' => 'phone',
@@ -42,15 +49,19 @@ $html_columns = array(
 );
 
 $result = db_query("
-SELECT v.*, If(vi.home_phone AND vi.home_phone > '',CONCAT(SUBSTRING(vi.home_phone,1,3), '-',SUBSTRING(vi.home_phone,4,3), '-', SUBSTRING(vi.home_phone,7)), ' ') AS phone FROM voters v 
+SELECT v.district, v.first_name, v.last_name, v.street_number, v.street_name, v.suffix_a, v.suffix_b, v.apt_unit_no, SUBSTRING(date_of_birth,1,4) AS date_of_birth, v.party_code,
+If(vi.home_phone AND vi.home_phone > '',CONCAT(SUBSTRING(vi.home_phone,1,3), '-',SUBSTRING(vi.home_phone,4,3), '-', SUBSTRING(vi.home_phone,7)), ' ') AS phone FROM voters v 
 INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
-LEFT JOIN van_info vi ON v.voter_id = vi.voter_id
+LEFT JOIN vbm_info vb ON v.voter_id = vb.voter_id
+INNER JOIN van_info vi ON v.voter_id = vi.voter_id
 LEFT JOIN voter_contact vc ON vc.voter_id = v.voter_id
-WHERE (vc.code_obama IS NULL OR vc.code_obama NOT IN ('N', 'LN', 'W', ''))
+WHERE (vc.code_buono IS NULL OR vc.code_buono NOT IN ('N', 'LN', 'W', 'U', '4', ''))
 AND v.status NOT LIKE 'Inactive%'
-AND (vi.ballot_received IS NULL OR vi.ballot_received = '')
+AND (vb.application_received IS NULL OR vb.application_received = '')
 AND (vd.rep_exists = 0)
+AND v.party_code = 'DEM'
 AND vd.door IN (SELECT vdd.door FROM voter_doors vdd INNER JOIN van_info vii ON vdd.voter_id=vii.voter_id WHERE (vii.home_phone IS NOT NULL AND vii.home_phone > ''))
+AND v.date_of_birth < '1989-09-01' 
 AND v.district = :district 
 ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no, v.last_name, v.first_name ASC", array(':district' => $district))->fetchAll(PDO::FETCH_ASSOC);
 
@@ -75,12 +86,13 @@ div.spacer {
 }
 table.walk-list {
   width: 65em;
+  border-collapse: collapse;
 }
 .walk-list th.phone {
-  width: 7em;
+  width: 8em;
 }
 .walk-list th.DOB {
-  width: 6em;
+  width: 3em;
 }
 .walk-list th.dist {
   width: 3em;
@@ -94,6 +106,9 @@ table.walk-list {
 .walk-list tr td {
   background-color: #fff;
   padding-left: 0.5em;
+  padding-right: 0.5em;
+  padding-top: 0.2em;
+  padding-bottom: 0.2em;
   border-left: solid 1px;
 }
 .walk-list tr.odd td {
@@ -142,7 +157,7 @@ while ($html_rows) {
     $sum += count($next);
     $current_set[] = $next;
     $num_streets++;
-  } while ($html_rows && ($sum < 30) && ($sum + count(reset($html_rows)) < 35) && $num_streets < $streets_per_page_max);
+  } while ($html_rows && ($sum < 25) && ($sum + count(reset($html_rows)) < 30) && $num_streets < $streets_per_page_max);
 
   // Add a page break except for with the 1st street.
   $pagebreak = TRUE && ($curr_street > 1);
@@ -187,7 +202,7 @@ else {
 exit;
 
 function build_table_head($html_columns, $curr_street, $total, $pagebreak, $base_name) {
-$attr = ''; //($pagebreak) ? ' style="page-break-before: always;"': '';
+$attr = ($pagebreak) ? ' style="page-break-before: always;"': '';
   $thead = <<<EOTHEAD
 <p$attr>Street# {$curr_street} of {$total} | List: {$base_name}</p>
 <table class="walk-list">
@@ -218,3 +233,4 @@ function build_row_cells($data, $columns) {
   }
   return $row;
 }
+//INSERT IGNORE INTO voter_contact SELECT vh.voter_id, '4' AS code_buono FROM voters v INNER JOIN vote_history vh ON v.voter_id=vh.voter_id WHERE v.status NOT LIKE 'In%' AND vh.election_date IN ('2012-11-06', '2011-11-08', '2010-11-02', '2009-11-03') GROUP BY vh.voter_id HAVING COUNT(vh.voter_id) >= 4;
