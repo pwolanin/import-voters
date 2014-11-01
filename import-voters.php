@@ -15,7 +15,7 @@ ini_set('auto_detect_line_endings', 1);
 $scriptname = array_shift($argv);
 
 if (count($argv) < 1) {
-  exit("usage: {$scriptname} voterfile [municipal filter] [county name]\n\nUse '-' for municipal filter to skip it when supplying a county name");
+  exit("usage: {$scriptname} voterfile [municipal filter] [county name]\n\nUse '-' for municipal filter to skip it when supplying a county name\n\n");
 }
 
 $filename = array_shift($argv);
