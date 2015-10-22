@@ -12,7 +12,7 @@
 require_once dirname(__FILE__) . '/db-helper.php';
 
 if (count($argv) < 2) {
-  exit("usage: {$argv[0]} district [both] [num streets per page max:3]");
+  exit("usage: {$argv[0]} district [num streets per page max:3]");
 }
 
 
@@ -25,19 +25,17 @@ if ($district < 1 || $district > 22) {
 // Format for query.
 $district = sprintf('%02d', $district);
 
-$both = !empty($argv[2]);
-
 $streets_per_page_max = 0;
 
-if (!empty($argv[3])) {
-  $streets_per_page_max = (int) $argv[3];
+if (!empty($argv[2])) {
+  $streets_per_page_max = (int) $argv[2];
 }
 
 if ($streets_per_page_max <= 0) {
   $streets_per_page_max = 1;
 }
 
-echo "Max of {$streets_per_page_max} streets per page\n";
+echo "District {$district} Max of {$streets_per_page_max} streets per page\n";
 
 $html_columns = array(
   'num' => 'street_number',
@@ -47,30 +45,28 @@ $html_columns = array(
   'last_names' => 'last_names',
 );
 
-$iterate = $both ? array('both') : array('odd','even');
+$iterate = array('odd','even');
 
-foreach ($iterate as $odd) {
+foreach ($iterate as $side) {
   $args = array(':district' => $district);
-  if (!$both) {
-    $args[':odd'] = $odd == 'odd' ? 1 : 0;
-  }
+
+  $args[':odd'] = $side == 'odd' ? 1 : 0;
   $result = db_query("
-  SELECT v.street_number, v.street_name, v.district, v.suffix_a, v.suffix_b, v.apt_unit_no, GROUP_CONCAT(DISTINCT(v.last_name) SEPARATOR ', ') AS last_names FROM voters v
+  SELECT v.street_number, v.street_name, v.district, v.suffix_a, v.suffix_b, v.apt_unit_no, GROUP_CONCAT(DISTINCT(v.last_name) SEPARATOR ', ') AS last_names
+  FROM voters v
   INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
-  LEFT JOIN vbm_info vi ON v.voter_id = vi.voter_id
-  LEFT JOIN voter_contact vc ON vc.voter_id = v.voter_id
-  WHERE (vc.code_buono IS NULL OR vc.code_buono NOT IN ('N', 'LN', 'W', 'U'))
-  AND v.status NOT LIKE 'Inactive%'
-  AND (vi.application_received IS NULL OR vi.application_received = '')
+  INNER JOIN vote_history vh ON v.voter_id = vh.voter_id
+  WHERE v.status NOT LIKE 'Inactive%'
   AND (vd.rep_exists = 0)
-  AND v.district = :district " .
-  ($both ? '' : "  AND v.street_num_int % 2 = :odd ") . "
+  AND v.district = :district
+  AND (vh.date_registered > '2013-10-01' OR vh.election_date IN ('2012-11-06', '2013-10-16', '2013-11-05'))
+  AND v.street_num_int % 2 = :odd
   GROUP BY vd.door
   ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC", $args)->fetchAll(PDO::FETCH_ASSOC);
 
   date_default_timezone_set('America/New_York');
   $time = date('Y-m-d_H-i');
-  $base_name = "gotv_hang_dist_{$district}_{$odd}_{$time}";
+  $base_name = "gotv_hang_dist_{$district}_{$side}_{$time}";
   $base_fn = "./$base_name";
   $html_doc = '';
 
@@ -183,11 +179,11 @@ EOHEAD;
       echo $dompdf->get_canvas()->get_cpdf()->messages;
       flush();
     }
-    echo "wrote out {$base_fn}.pdf.\n";
+    echo "wrote out {$base_fn}.pdf\n";
   }
   else {
     file_put_contents("{$base_fn}.html", $html_doc);
-    echo "dompdf not found - wrote out html.\n";
+    echo "dompdf not found - wrote out html\n";
   }
 }
 

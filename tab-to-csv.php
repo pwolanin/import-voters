@@ -6,7 +6,7 @@
  */
 
 // Don't wait for input if there is none already.
-stream_set_blocking(STDIN, 0);
+//stream_set_blocking(STDIN, 0);
 
 while (($line = fgets(STDIN)) !== FALSE) {
   $line = rtrim($line, "\r\n");
