@@ -2,7 +2,7 @@
 <?php
 /**
  * Portions of this code are copyrighted by the contributors to Drupal.
- * Additional code copyright 2011-2012 by Peter Wolanin.
+ * Additional code copyright 2011-2016 by Peter Wolanin.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ $base = basename($filename);
 
 if ($base == 'AlphaVoterListState.txt') {
 // The CSV files, at least, have an extra trailing delimiter. So the
-// expected number of fields is on more than the real number we use.
+// expected number of fields is one more than the real number we use.
   define('EXPECTED_NUM_FIELDS', 26);
   define('LIST_SOURCE', 'STATE');
 }
@@ -346,7 +346,11 @@ if (!feof($handle)) {
 }
 fclose($handle);
 
+// Populate a binary flag for REP voters.
 db_query("INSERT INTO voter_doors (voter_id, door, rep_exists) SELECT voter_id, CONCAT(street_name, '@', street_number, '@', suffix_a, '@', suffix_b, '@', apt_unit_no, '@', zip5), IF(party_code = 'REP', 1, 0) FROM voters");
+
+// Flag all voters at a door if the REP is not inactive.
+db_query("UPDATE voter_doors SET rep_exists = 1 WHERE door IN (SELECT * FROM (SELECT door FROM voter_doors vd JOIN voters v ON v.voter_id=vd.voter_id WHERE vd.rep_exists = 1 AND v.status NOT LIKE 'I%') doors1)");
 
 // Add indexes.
 foreach ($schema as $table => $info) {

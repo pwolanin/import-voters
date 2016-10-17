@@ -45,7 +45,7 @@ foreach (array(0,1) as $odd) {
   
   $html_columns = array(
     'target' => 'target',
-    'buono' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
+    'clinton' => 'Y&nbsp;LY&nbsp;U&nbsp;LN&nbsp;N&nbsp;W&nbsp;R',
     'first_name' => 'first_name',
     'last_name' => 'last_name',
     'num' => 'street_number',
@@ -58,7 +58,7 @@ foreach (array(0,1) as $odd) {
   
   $csv_columns = array(
     'voter_id' => 'voter_id',
-    'code_buono' => ' ',
+    'code_clinton' => ' ',
     'note' => ' ',
     'target' => 'target',
     'first_name' => 'first_name',
@@ -77,6 +77,7 @@ foreach (array(0,1) as $odd) {
   AND vd.door IN (SELECT door FROM target_voters)
   AND v.district = '$district'
   AND v.street_num_int % 2 = $odd
+  AND vd.rep_exists <> 1
   ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC, target DESC, v.last_name ASC")->fetchAll(PDO::FETCH_ASSOC);
   
   date_default_timezone_set('America/New_York');
