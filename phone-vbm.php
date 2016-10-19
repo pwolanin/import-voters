@@ -11,69 +11,46 @@
 
 require_once dirname(__FILE__) . '/db-helper.php';
 
-if (count($argv) < 2) {
-  exit("usage: {$argv[0]} district [num streets per page max:3]");
-}
 
-
-$district = (int) $argv[1];
-
-if ($district < 1 || $district > 22) {
-  exit("Invalid district $district\n");
-}
-
-// Format for query.
-$district = sprintf('%02d', $district);
-
-$streets_per_page_max = 0;
-
-if (!empty($argv[2])) {
-  $streets_per_page_max = (int) $argv[2];
-}
-
-if ($streets_per_page_max <= 0) {
-  $streets_per_page_max = 1;
-}
-
-echo "District {$district} Max of {$streets_per_page_max} streets per page\n";
-
+  $viewname = "phone_vbm";
+  
 $html_columns = array(
+  'phone' => 'phone',
+  'dist' => 'district',
+  'first_name' => 'first_name',
+  'last_name' => 'last_name',
   'num' => 'street_number',
   'street' => 'street_name',
   'unit' => array('suffix_a', 'suffix_b', 'apt_unit_no'),
-  'dist' => 'district',
-  'last_names' => 'last_names',
+  'DOB' => 'date_of_birth',
+  'party' => 'party_code',
+  'requested' => 'application_received',
+  'status' => 'ballot_status',
 );
-
-$iterate = array('odd','even');
-
-foreach ($iterate as $side) {
-  $args = array(':district' => $district);
-
-  $args[':odd'] = $side == 'odd' ? 1 : 0;
-  $result = db_query("
-  SELECT v.street_number, v.street_name, v.district, v.suffix_a, v.suffix_b, v.apt_unit_no, GROUP_CONCAT(DISTINCT(v.last_name) SEPARATOR ', ') AS last_names
-  FROM voters v
-  INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
-  INNER JOIN  (SELECT voter_id from vote_history vh WHERE vh.party_code = 'DEM' AND election_date IN ('2015-06-02', '2014-06-03', '2013-06-04', '2012-06-05') GROUP BY voter_id HAVING COUNT(election_date) >= 1) as sub ON sub.voter_id = v.voter_id
-  WHERE v.status NOT LIKE 'Inactive%'
-  AND v.district = :district
-  AND v.party_code IN ('DEM', 'UNA')
-  AND v.street_num_int % 2 = :odd
-  GROUP BY vd.door
-  ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC", $args)->fetchAll(PDO::FETCH_ASSOC);
-
+  
+$result = db_query("
+SELECT v.district, v.first_name, v.last_name, v.street_number, v.street_name, v.suffix_a, v.suffix_b, v.apt_unit_no, SUBSTRING(date_of_birth,1,4) AS date_of_birth, v.party_code,
+If(vi.preferred_phone AND vi.preferred_phone > '',CONCAT(SUBSTRING(vi.preferred_phone,1,3), '-',SUBSTRING(vi.preferred_phone,4,3), '-', SUBSTRING(vi.preferred_phone,7)), ' ') AS phone, ballot_status, application_received FROM voters v 
+INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
+LEFT JOIN vbm_info vb ON v.voter_id = vb.voter_id
+LEFT JOIN van_info vi ON v.voter_id = vi.voter_id
+WHERE v.status NOT LIKE 'Inactive%'
+AND (vb.application_received IS NOT NULL AND vb.application_received > '')
+AND vb.ballot_status != 'Received'
+AND (vd.rep_exists = 0)
+AND v.party_code IN ('DEM', 'UNA')
+  ORDER BY v.district, v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC, v.last_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+  
   date_default_timezone_set('America/New_York');
   $time = date('Y-m-d_H-i');
-  $base_name = "gotv_hang_dist_{$district}_{$side}_{$time}";
-  $base_fn = "./$base_name";
+  $base_fn = "./{$viewname}_{$time}";
   $html_doc = '';
-
-  $html_doc = <<<EOHEAD
+  
+  $html_head = <<<EOHEAD
 <!DOCTYPE HTML>
 <html>
 <head>
-<title>{$base_name}</title>
+<title>{$viewname}_{$time}</title>
 <style>
 body {
   font: Helvetica;
@@ -83,87 +60,102 @@ div.spacer {
   height: 1.4em;
 }
 table.walk-list {
-  width: 65em;
+  width: 7.5in;
+  border-collapse: collapse;
 }
-.walk-list th.dist {
+
+.walk-list th.phone {
+  width: 8em;
+}
+.walk-list th.requested {
+  width: 6em;
+}
+.walk-list th.status {
+  width: 7em;
+}
+.walk-list th.DOB {
   width: 3em;
 }
 .walk-list th.street {
-  width: 14em;
+  width: 11em;
 }
-.walk-list th.unit, .walk-list th.num, {
+.walk-list th.first_name, .walk-list th.last_name {
+  width: 9em;
+}
+.walk-list th.num {
+  width: 2.5em;
+}
+.walk-list th.target, .walk-list th.unit, .walk-list th.party {
   width: 2em;
 }
 .walk-list tr td {
   background-color: #fff;
   padding-left: 0.5em;
+  padding-right: 0.5em;
+  padding-top: 0.2em;
+  padding-bottom: 0.2em;
   border-left: solid 1px;
 }
 .walk-list tr.odd td {
   background-color: #eee;
 }
+body {
+  padding-top: 5em;
+}
 </style>
 </head>
 <body>
 EOHEAD;
-
+  
   $curr_street = 0;
   $html_rows = array();
-
+  
   $last_street_name = NULL;
-
+  
   $doors = array();
-  $zebra = 0;
+  $zebra = 1;
   foreach ($result as $row) {
-    if ($last_street_name != $row['street_name']) {
-      $curr_street++;
-      $zebra = 0;
-    }
-    $html_row = build_row_cells($row, $html_columns);
     $address = $row['street_number'] . '|' . $row['street_name'] . '|' . $row['apt_unit_no'] . '|' . $row['suffix_a'] . '|' . $row['suffix_b'];
+    if (!isset($doors[$address])) {
+      $zebra++;
+    }
     $doors[$address] = TRUE;
-    $last_street_name = $row['street_name'];
+    $html_row = build_row_cells($row, $html_columns);
     $html = '<td>' . implode('</td><td>', $html_row) . "</td></tr>\n";
     // Mark odd rows with a class.
     $html = ($zebra % 2 == 1) ? '<tr class="odd">' . $html : '<tr>' . $html;
-    $html_rows[$curr_street][] = $html;
-    $zebra++;
+    $html_rows[] = $html;
   }
-
-
-  $curr_street = 1;
-  $total = count($html_rows);
-
+  
+  $curr_page = 1;
+  $total = ceil(count($html_rows) / 40);
+  
   while ($html_rows) {
     $sum = 0;
-    $num_streets = 0;
     $current_set = array();
     do {
       $next = array_shift($html_rows);
-      $sum += count($next);
+      $sum++;
       $current_set[] = $next;
-      $num_streets++;
-    } while ($html_rows && ($sum < 30) && ($sum + count(reset($html_rows)) < 35) && $num_streets < $streets_per_page_max);
-
+    } while ($html_rows && ($sum < 40));
+  
     // Add a page break except for with the 1st street.
-    $pagebreak = TRUE && ($curr_street > 1);
-    foreach ($current_set as $rows) {
-      if (!$pagebreak && ($curr_street > 1)) {
-        $html_doc .= '<div class="spacer"></div>';
-      }
-      $html_doc .= build_table_head($html_columns, $curr_street, $total, $pagebreak, $base_name);
-      $html_doc .= implode('', $rows) . "</table>\n<p>" . count($rows) . " doors</p>\n";
-      $pagebreak = FALSE;
-      $curr_street++;
-    }
+    $pagebreak = TRUE && ($curr_page > 1);
+
+      $html_doc .= build_table_head($html_columns, $curr_page, $total, $pagebreak, $viewname, $time);
+      $html_doc .= implode('', $current_set) . "</table>\n";
+    $curr_page++;
   }
-
+  
   // Build doc up from the end.
-  $html_doc .= "<p>" . count($doors) . " TOTAL doors</p></body>\n</html>\n";
+  $html_doc = $html_head . "<p>PHONE VBM PRINCETON</p>\n" . $html_doc ."\n</body>\n</html>\n";
 
+  
   $mydir = dirname(__FILE__);
+//  file_put_contents($mydir . '/out.html', $html_doc);
+  
   $verbose = FALSE;
-
+  
   if (file_exists("{$mydir}/dompdf/dompdf_config.inc.php")) {
     require_once("{$mydir}/dompdf/dompdf_config.inc.php");
     $dompdf = new DOMPDF();
@@ -182,16 +174,16 @@ EOHEAD;
   }
   else {
     file_put_contents("{$base_fn}.html", $html_doc);
-    echo "dompdf not found - wrote out html\n";
+    echo "dompdf not found - wrote out html.\n";
   }
-}
+
 
 exit;
 
-function build_table_head($html_columns, $curr_street, $total, $pagebreak, $viewname) {
+function build_table_head($html_columns, $curr_page, $total, $pagebreak, $viewname, $time) {
 $attr = ($pagebreak) ? ' style="page-break-before: always;"': '';
   $thead = <<<EOTHEAD
-<p$attr>Street# {$curr_street} of {$total} | List: {$viewname}</p>
+<p$attr>Page# {$curr_page} of {$total} | List: {$viewname}_{$time}</p>
 <table class="walk-list">
 <tr>
 EOTHEAD;

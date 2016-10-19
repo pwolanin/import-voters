@@ -32,9 +32,15 @@ $schema['van_info'] = array(
       'type' => 'int',
       'not null' => TRUE,
     ),
-    'home_phone' => array(
+    'preferred_phone' => array(
       'type' => 'varchar',
       'length' => 14,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'preferred_email' => array(
+      'type' => 'varchar',
+      'length' => 255,
       'not null' => TRUE,
       'default' => '',
     ),
@@ -73,7 +79,7 @@ if (($line = fgets($handle)) !== FALSE) {
       $delimiter = "\t"; // tab delimited
     }
   }
-  $header_fields = explode($delimiter, $line);
+  $header_fields = str_getcsv($line, $delimiter);
   foreach ($header_fields as $idx => $value) {
     $header_fields[$idx] = trim($value);
   }
@@ -84,15 +90,14 @@ if (($line = fgets($handle)) !== FALSE) {
 echo "Header fields:\n";
 var_dump($header_fields);
 
-while (($line = fgets($handle)) !== FALSE) {
-  $fields = explode($delimiter, $line);
+while ($fields = fgetcsv($handle, 1000, $delimiter)) {
   if (count($fields) < 3) {
     echo "Invalid line: {$line}\n";
     continue;
   }
 
   $info = array();
-  foreach(array('voter_id' => 'AffNo', 'home_phone' => 'HomePhone',) as $sql => $key) {
+  foreach(array('voter_id' => 'AffNo', 'preferred_phone' => 'Preferred Phone', 'preferred_email' => 'PreferredEmail',) as $sql => $key) {
     $info[$sql] = $fields[$idx[$key]];
   }
 

@@ -32,9 +32,21 @@ $schema['van_info'] = array(
       'type' => 'int',
       'not null' => TRUE,
     ),
-    'home_phone' => array(
+    'preferred_phone' => array(
       'type' => 'varchar',
       'length' => 14,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'preferred_email' => array(
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'request_received' => array(
+      'type' => 'varchar',
+      'length' => 10,
       'not null' => TRUE,
       'default' => '',
     ),
@@ -47,12 +59,6 @@ $schema['van_info'] = array(
     'ballot_received' => array(
       'type' => 'varchar',
       'length' => 10,
-      'not null' => TRUE,
-      'default' => '',
-    ),
-    'van_id' => array(
-      'type' => 'varchar',
-      'length' => 25,
       'not null' => TRUE,
       'default' => '',
     ),
@@ -87,8 +93,14 @@ if (($line = fgets($handle)) !== FALSE) {
     if (count(explode('|', $line)) >= 2) {
       $delimiter = '|'; // Pipe delimited
     }
+    elseif (count(explode("\t", $line)) >= 2) {
+      $delimiter = "\t"; // tab delimited
+    }
   }
-  $header_fields = explode($delimiter, $line);
+  $header_fields = str_getcsv($line, $delimiter);
+  foreach ($header_fields as $idx => $value) {
+    $header_fields[$idx] = trim($value);
+  }
   // Allow us to look up desired fields based on name in header.
   $idx = array_flip($header_fields);
   $expected_num_fields = count($header_fields);
@@ -96,20 +108,19 @@ if (($line = fgets($handle)) !== FALSE) {
 echo "Header fields:\n";
 print_r($header_fields);
 
-while (($line = fgets($handle)) !== FALSE) {
-  $fields = explode($delimiter, $line);
+while ($fields = fgetcsv($handle, 1000, $delimiter)) {
   if (count($fields) < 3) {
     echo "Invalid line: {$line}\n";
     continue;
   }
-
+                                                                                                                           
   $info = array();
-  foreach(array('voter_id' => 'VoterID', 'home_phone' => 'HomePhone', 'ballot_mailed' => 'BallotMailed', 'ballot_received' => 'BallotReceived', 'van_id' => 'VANID') as $sql => $key) {
+  foreach(array('voter_id' => 'AffNo', 'preferred_phone' => 'Preferred Phone', 'preferred_email' => 'PreferredEmail', 'request_received' => 'RequestReceived', 'ballot_mailed' => 'BallotMailed', 'ballot_received' => 'BallotReceived') as $sql => $key) {
     $info[$sql] = $fields[$idx[$key]];
   }
-  // For some reason, van has a prefix 'I0210' on the NJ voter ID.
-  $info['voter_id'] = substr($info['voter_id'], 5);
+
   $info['ballot_mailed'] = voter_reformat_date($info['ballot_mailed']);
+  $info['request_received'] = voter_reformat_date($info['request_received']);
   $info['ballot_received'] = voter_reformat_date($info['ballot_received']);
 
   try {

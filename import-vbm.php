@@ -39,12 +39,6 @@ $schema['vbm_info'] = array(
       'not null' => TRUE,
       'default' => '',
     ),
-    'ballot_mailed' => array(
-      'type' => 'varchar',
-      'length' => 10,
-      'not null' => TRUE,
-      'default' => '',
-    ),
     'ballot_received' => array(
       'type' => 'varchar',
       'length' => 10,
@@ -57,6 +51,12 @@ $schema['vbm_info'] = array(
       'not null' => TRUE,
       'default' => '',
     ),
+    'party_code' => array(
+      'type' => 'varchar',
+      'length' => 20,
+      'not null' => TRUE,
+      'default' => '',
+    ),
   ),
   'primary key' => array('voter_id'),
   'indexes' => array(
@@ -64,6 +64,16 @@ $schema['vbm_info'] = array(
     'ballot_status' => array(array('ballot_status', 3)),
   ),
 );
+
+// Expect a camel case csv header like MailingState.
+//$mapping = array_flip(array_keys($schema['vbm_info']['fields']));
+//foreach ($mapping as $key => &$value) {
+//  $parts = explode('_', $key);
+//  $value = implode('', array_map('ucfirst', $parts));
+//}
+
+// Special case
+//$mapping['voter_id'] = 'VoterID';
 
 $handle = @fopen($filename, "r");
 if (!$handle) {
@@ -79,7 +89,11 @@ if (!$update) {
 }
 
 $vbm_fields = array_keys($schema['vbm_info']['fields']);
-
+// Trivial mapping for manually fixed header row.
+$mapping = array();
+foreach ($vbm_fields as $key) {
+  $mapping[$key] = $key;
+}
 
 $delimiter = NULL;
 $rows = 0;
@@ -94,7 +108,7 @@ if (($line = fgets($handle)) !== FALSE) {
       $delimiter = '|'; // Pipe delimited
     }
   }
-  $header_fields = explode($delimiter, $line);
+  $header_fields = str_getcsv($line, $delimiter);
   // Allow us to look up desired fields based on name in header.
   $idx = array_flip($header_fields);
   $expected_num_fields = count($header_fields);
@@ -102,16 +116,37 @@ if (($line = fgets($handle)) !== FALSE) {
 echo "Header fields:\n";
 print_r($header_fields);
 
-$i=0;
-while (($line = fgets($handle)) !== FALSE) {
-  $fields = str_getcsv($line, $delimiter);
+$idx1 = array(
+  'voter_id' => 0,
+  'party_code' => 4,
+  'application_received' => 5,
+  'ballot_received' => 7,
+  'ballot_status' => 11,
+);
+$idx2 = array(
+  'voter_id' => 0,
+  'voter_id' => 0,
+  'party_code' => 4,
+  'application_received' => 5,
+  'ballot_received' => 6,
+  'ballot_status' => 10,
+);
+
+
+while (($fields = fgetcsv($handle, 1000, $delimiter)) !== FALSE) {
   if (count($fields) < 3) {
     echo "Invalid line: {$line}\n";
     continue;
   }
 
+  if ($fields[14] == '11/08/2016 GENERAL ELECTION') {
+    $idx = $idx1;
+  }
+  else {
+    $idx = $idx2;
+  }
   $info = array();
-  foreach(array('voter_id' => 'VoterID', 'ballot_mailed' => 'BallotMailed', 'application_received' => 'ApplicationReceived', 'ballot_received' => 'BallotReceived', 'ballot_status' => 'BallotStatus',) as $sql => $key) {
+  foreach($mapping as $sql => $key) {
     if (isset($idx[$key])) {
       $info[$sql] = $fields[$idx[$key]];
     }
@@ -120,7 +155,7 @@ while (($line = fgets($handle)) !== FALSE) {
     }
   }
   $info['application_received'] = voter_reformat_date($info['application_received']);
-  $info['ballot_mailed'] = voter_reformat_date($info['ballot_mailed']);
+  //$info['ballot_mail_date'] = voter_reformat_date($info['ballot_mail_date']);
   $info['ballot_received'] = voter_reformat_date($info['ballot_received']);
 
   try {
