@@ -139,7 +139,7 @@ while (($fields = fgetcsv($handle, 1000, $delimiter)) !== FALSE) {
     continue;
   }
 
-  if ($fields[14] == '11/08/2016 GENERAL ELECTION') {
+  if (isset($fields[14]) && $fields[14] == '11/08/2016 GENERAL ELECTION') {
     $idx = $idx1;
   }
   else {

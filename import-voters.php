@@ -247,7 +247,7 @@ $schema['voter_contact'] = array(
       'type' => 'int',
       'not null' => TRUE,
     ),
-    'code_buono' => array(
+    'code_clinton' => array(
       'type' => 'varchar',
       'length' => 4,
       'not null' => TRUE,

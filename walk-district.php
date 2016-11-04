@@ -109,11 +109,11 @@ table.walk-list {
 .walk-list th.DOB {
   width: 3em;
 }
-.walk-list th.buono, {
+.walk-list th.clinton, {
   width: 9em;
 }
 .walk-list th.street {
-  width: 11em;
+  width: 14em;
 }
 .walk-list th.first_name, .walk-list th.last_name {
   width: 11em;
