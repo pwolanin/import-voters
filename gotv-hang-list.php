@@ -55,10 +55,13 @@ foreach ($iterate as $side) {
   SELECT v.street_number, v.street_name, v.district, v.suffix_a, v.suffix_b, v.apt_unit_no, GROUP_CONCAT(DISTINCT(v.last_name) SEPARATOR ', ') AS last_names
   FROM voters v
   INNER JOIN voter_doors vd ON v.voter_id = vd.voter_id
-  INNER JOIN  (SELECT voter_id from vote_history vh WHERE vh.party_code = 'DEM' AND election_date IN ('2015-06-02', '2014-06-03', '2013-06-04', '2012-06-05') GROUP BY voter_id HAVING COUNT(election_date) >= 1) as sub ON sub.voter_id = v.voter_id
-  WHERE v.status NOT LIKE 'Inactive%'
+  INNER JOIN  (SELECT voter_id from vote_history vh WHERE party_code IN ('DEM', 'UNA') AND (election_date IN ('2015-11-03', '2014-11-04', '2013-11-05') OR date_registered > '2015-11-01') GROUP BY voter_id) as sub ON sub.voter_id = v.voter_id
+  LEFT JOIN vbm_info vb ON vb.voter_id = v.voter_id
+  WHERE vb.ballot_status IS NULL
+  AND v.status NOT LIKE 'Inactive%'
   AND v.district = :district
   AND v.party_code IN ('DEM', 'UNA')
+  AND vd.rep_exists <> 1
   AND v.street_num_int % 2 = :odd
   GROUP BY vd.door
   ORDER BY v.street_name ASC, v.street_num_int ASC, v.suffix_a, v.suffix_b, v.apt_unit_no ASC", $args)->fetchAll(PDO::FETCH_ASSOC);

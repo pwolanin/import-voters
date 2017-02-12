@@ -52,11 +52,13 @@ SELECT v.first_name, v.last_name, v.middle_name, v.suffix, v.street_number, v.st
   SUBSTRING(v.date_of_birth, 1, 4) as date_of_birth,
   If(vi.preferred_phone AND vi.preferred_phone > '',CONCAT(SUBSTRING(vi.preferred_phone,1,3), '-',SUBSTRING(vi.preferred_phone,4,3), '-', SUBSTRING(vi.preferred_phone,7)), ' ') AS phone,
   IF(vb.ballot_status IS NOT NULL,vb.ballot_status,'') as ballot_status,
-  vc.code_clinton
+  vc.code_clinton,
+  vd.rep_exists
 FROM {voters} v 
 LEFT JOIN {vbm_info} vb ON v.voter_id = vb.voter_id
 LEFT JOIN {van_info} vi ON v.voter_id = vi.voter_id
 LEFT JOIN {voter_contact} vc ON v.voter_id = vc.voter_id
+INNER JOIN {voter_doors} vd ON v.voter_id = vd.voter_id
 WHERE v.district = '$district'
 ORDER BY v.last_name ASC, v.first_name ASC, v.middle_name, v.street_name ASC, v.street_num_int ASC")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -158,6 +160,8 @@ $mydir = dirname(__FILE__);
 $verbose = FALSE;
 
 if (file_exists("{$mydir}/dompdf/dompdf_config.inc.php")) {
+  // This uses a stupid amount of memory for big docs.
+  ini_set('memory_limit', '512M');
   require_once("{$mydir}/dompdf/dompdf_config.inc.php");
   $dompdf = new DOMPDF();
   $dompdf->load_html($html_doc);
@@ -197,14 +201,19 @@ EOTHEAD;
 }
 
 function build_row_cells($data, $columns) {
-  if (!in_array($data['party_code'], array('DEM', 'UNA')) || (isset($data['code_clinton']) && $data['code_clinton'] != 'Y')) {
-    // Only call likely supporters.
-    $data['phone'] = '---';
-  }
-  elseif ($data['ballot_status']) {
+  if ($data['ballot_status']) {
     // Don't call people with VBM ballots.
     $data['phone'] = 'VBM: ' . $data['ballot_status'];
   }
+  elseif (
+    !in_array($data['party_code'], array('DEM', 'UNA'))
+    || (isset($data['code_clinton']) && $data['code_clinton'] != 'Y')
+    || !empty($data['rep_exists'])
+    ) {
+    // Only call likely supporters.
+    $data['phone'] = '---';
+  }
+
   $row = array();
   foreach($columns as $ref) {
     if (is_array($ref)) {
