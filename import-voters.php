@@ -350,7 +350,9 @@ fclose($handle);
 db_query("INSERT INTO voter_doors (voter_id, door, rep_exists) SELECT voter_id, CONCAT(street_name, '@', street_number, '@', suffix_a, '@', suffix_b, '@', apt_unit_no, '@', zip5), IF(party_code = 'REP', 1, 0) FROM voters");
 
 // Flag all voters at a door if the REP is not inactive.
-db_query("UPDATE voter_doors SET rep_exists = 1 WHERE door IN (SELECT * FROM (SELECT door FROM voter_doors vd JOIN voters v ON v.voter_id=vd.voter_id WHERE vd.rep_exists = 1 AND v.status NOT LIKE 'I%') doors1)");
+if ($municipal_filter) {
+  db_query("UPDATE voter_doors SET rep_exists = 1 WHERE door IN (SELECT * FROM (SELECT door FROM voter_doors vd JOIN voters v ON v.voter_id=vd.voter_id WHERE vd.rep_exists = 1 AND v.status NOT LIKE 'I%') doors1)");
+}
 
 // Add indexes.
 foreach ($schema as $table => $info) {
